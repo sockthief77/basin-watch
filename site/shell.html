@@ -1,0 +1,1936 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Basin Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --ground:#272727; --surface:#323131; --surface-2:#383837; --sunk:#232323;
+  --ink:#F9F9F7; --muted:#C3C2B7; --faint:#97958D; --line:#444341; --line-soft:#343432;
+  --accent:#D97757; --accent-ink:#F0A382; --accent-soft:#3D2A21;
+  --hot:#E9764F; --hot-soft:#331F17;
+  --home:#5FADEA; --home-soft:#12283A;
+  --cvv:#B295DC; --cosa:#3CB3A0; --syh:#DCA24A; --gem:#B9BE79; --ind:#77817A;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sother:#6f7970;
+  --basinfill:rgba(224,136,103,.16); --basinline:rgba(224,136,103,.7); --hwline:rgba(255,255,255,.85);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+/* Dark mode is the only mode for this page, always - Ezra's explicit request 2026-09-08.
+   No light palette, no prefers-color-scheme branch, no [data-theme] override: whatever
+   the viewer's own light/dark setting is, this page stays dark. */
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;font-size:15px;line-height:1.55;
+  -webkit-font-smoothing:antialiased}
+.wrap{width:96%;max-width:2600px;margin:0 auto;padding:18px 0 44px}
+h1,h2,h3,.cond{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+
+/* masthead */
+.mast{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:10px 24px;
+  padding-bottom:11px;border-bottom:2px solid var(--ink)}
+.mast .lead{display:flex;align-items:center;gap:20px;flex:0 1 auto;min-width:0}
+.mast .titlecol{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto}
+.mast .titlecol h1{margin:0}
+.mast .wir{font-size:13px;line-height:16px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center}
+.mast .lead h1{flex:0 0 auto}
+.mast h1{margin:0;font-size:clamp(30px,5.2vw,46px);font-weight:700;letter-spacing:-.018em;line-height:.98;text-wrap:balance}
+.mast .sub{color:var(--muted);font-size:13px;line-height:1.45;max-width:720px;flex:0 1 auto;margin:0}
+/* Ticker centred between the description and the date, 2026-09-08. First attempt used
+   flex (.mast as a flex row, ticker with margin:0 auto) and broke on a real wide browser
+   window: .mastright wrapped onto its own line below the title instead of staying in the
+   row. Rebuilt on CSS Grid instead - .mast is grid-template-columns:auto 1fr auto (lead |
+   ticker | mastright), which doesn't have flexbox's wrap-or-not ambiguity: three explicit
+   columns, always three columns, no matter the viewport width. The middle column is 1fr
+   and the ticker uses justify-self:center within it, so it centres in the real leftover
+   space (.sub is capped at 720px so that space is real, not just wrapped-text raggedness)
+   without any risk of a column dropping to a new row. */
+.mastright{display:flex;align-items:center;gap:18px;flex-shrink:0}
+.edition{text-align:center;flex-shrink:0}
+.tickerwrap{display:flex;pointer-events:none;justify-self:center;align-self:center}
+.tickerwrap .ticker{pointer-events:auto}
+.edition .d{font-size:13px;line-height:16px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.edition .n{font-size:26px;line-height:30px;font-weight:600;letter-spacing:-.01em}
+.edition .edd{margin-top:2px}
+.striplabel{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--accent-ink);font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:0 0 auto}
+.ticker{border:1.5px solid var(--hot);padding:5px 11px;display:grid;
+  grid-template-columns:auto auto auto;justify-content:center;align-items:center;
+  gap:1px 7px;flex-shrink:0;margin-bottom:2px}
+.ticker .tksrc{grid-column:1/-1;font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);text-align:center;white-space:nowrap}
+.ticker .tksym{font-size:13.2px;letter-spacing:.06em;color:var(--hot);font-weight:700;line-height:1;align-self:center}
+.ticker .tkpx{font-size:19px;font-weight:700;letter-spacing:-.01em;color:var(--ink);line-height:1}
+.ticker .tklbl{font-size:11.4px;letter-spacing:.02em;color:var(--muted);font-weight:600;line-height:1;align-self:center}
+
+/* signal tiles */
+.signals{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);margin:16px 0 24px}
+.sig{background:var(--surface);padding:11px 15px 12px;display:flex;flex-direction:column;gap:2px}
+.sig .k{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.sig .v{font-size:27px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.sig .n{font-size:12px;color:var(--muted);line-height:1.4}
+.sig.hot .v{color:var(--hot)}
+.sig.home .v{color:var(--home)}
+
+h2.sec{font-size:13px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;margin:26px 0 4px;display:flex;align-items:center;gap:10px}
+h2.sec:first-of-type{margin-top:0}
+h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.seclead{color:var(--muted);font-size:13.5px;margin:0 0 16px;max-width:70ch}
+
+/* news */
+.news{display:flex;flex-direction:column;gap:1px;background:var(--line);
+  border:1px solid var(--line);margin-bottom:22px}
+.item{background:var(--surface);padding:13px 16px;display:grid;
+  grid-template-columns:32px minmax(0,1fr) 190px;gap:0 16px}
+.item>*{grid-column:2}
+.item>.rank{grid-column:1}
+.item>.body{grid-column:2;grid-row:1}
+.item>.stk{grid-column:3;grid-row:1}
+.item.lead{background:var(--surface)}
+.rank{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--faint);
+  padding-top:3px;font-weight:500}
+.item.lead .rank{color:var(--hot);font-weight:600}
+.hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;min-height:0}
+.co{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17.5px;letter-spacing:-.005em}
+.tk{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line);padding:1px 5px}
+.when{font-size:12px;color:var(--faint);margin-left:auto}
+.ttl{grid-column:2;font-size:14.5px;margin:3px 0 0;color:var(--ink)}
+.ttl a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line)}
+.ttl a:hover{border-bottom-color:var(--accent)}
+.ttl a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.why{grid-column:2;font-size:13.5px;color:var(--muted);margin:6px 0 0}
+.why b{color:var(--ink);font-weight:600}
+.chips{grid-column:2;display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2.5px 7px;
+  border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.g{background:var(--hot-soft);border-color:transparent;color:var(--hot);font-weight:600}
+.chip.s{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink);font-weight:500}
+.chip.p{background:var(--home-soft);border-color:transparent;color:var(--home);font-weight:500}
+.chip.warn{border-style:dashed;border-color:var(--hot);color:var(--hot)}
+
+/* map */
+.mapcard{background:var(--surface);border:1px solid var(--line);padding:15px 16px 12px;margin-bottom:0}
+.caption{font-size:11.5px;color:var(--faint);margin:10px 0 0;line-height:1.45}
+
+/* table */
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--surface)}
+.tbl caption{text-align:left;font-size:12px;color:var(--muted);padding:0 0 8px}
+.tbl th{text-align:left;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--faint);font-weight:600;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:8px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl tr.me td{background:var(--home-soft)}
+.tbl tr.me td:first-child{box-shadow:inset 3px 0 0 var(--home)}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);margin:20px 0 16px}
+
+.note{background:var(--surface-2);border-left:3px solid var(--accent);
+  padding:11px 15px;font-size:13.5px;margin:0 0 20px;color:var(--ink)}
+.note b{font-weight:600}
+.note .h{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:14.5px;
+  display:block;margin-bottom:3px}
+
+/* ---- grade / cps inline highlighting (why-paragraphs), added 2026-09-09 ----
+   Two classes mirroring the brief's own materiality distinction: a real assayed or
+   calibrated-gamma grade (%U3O8, %eU3O8, ppm) reads as the reliable number - bold,
+   warm gold, faint glow. A raw handheld/downhole cps count is explicitly *not* a
+   grade (see why-text caveats throughout) so it stays visually secondary - italic,
+   cooler violet, no glow - legible but clearly a lesser-confidence figure. */
+.g-assay{font-family:"IBM Plex Mono",monospace;font-weight:700;color:#F2C14E;
+  text-shadow:0 0 10px rgba(242,193,78,.45);letter-spacing:.01em}
+.g-cps{font-family:"IBM Plex Mono",monospace;font-style:italic;font-weight:500;
+  color:var(--cvv);word-spacing:-.3em}
+
+/* archive + footer */
+.arch{background:var(--surface);border:1px solid var(--line);padding:2px 0;margin-bottom:16px}
+.arow{display:flex;gap:14px;align-items:baseline;padding:10px 16px;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+.arow:last-child{border-bottom:none}
+.arow .ad{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);flex:0 0 auto}
+.arow .as{color:var(--muted)}
+.arow .cur{color:var(--accent-ink);font-weight:600}
+.arch a.arow{color:inherit;text-decoration:none;cursor:pointer}
+.arch a.arow:hover{background:var(--surface-2)}
+.arch a.arow:hover .ad{color:var(--ink)}
+footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--faint);line-height:1.6}
+footer a{color:var(--muted)}
+footer .srcs{columns:2;column-gap:28px;margin-top:8px}
+@media(max-width:620px){footer .srcs{columns:1}.edition{margin-left:0;text-align:left}}
+/* --- interactive map --- */
+.maphead{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-start;margin-bottom:9px}
+.mapttl.toptitle{margin:26px 0 9px}
+.mapttl h3{margin:0;font-size:clamp(30px,5.2vw,46px);font-weight:700;letter-spacing:-.018em;line-height:.98;
+  display:flex;align-items:center;gap:11px}
+.xopenmap{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+  width:39px;height:39px;color:var(--muted);align-self:center;transform:translateY(-2px)}
+.xopenmap svg{width:28.5px;height:28.5px;display:block}
+.xopenmap:hover{color:var(--ink)}
+.mapttl p{margin:3px 0 0;font-size:12.5px;color:var(--muted);max-width:62ch}
+.mapbtns{margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+.mbtn{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:5px 10px;
+  background:var(--surface-2);color:var(--ink);border:1px solid var(--line);cursor:pointer}
+.mbtn:hover{border-color:var(--accent)}
+.mbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.mbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.layercol{position:sticky;top:14px}
+.layerbar{display:flex;flex-direction:column;gap:3px;padding-right:4px}
+.heatbar{position:static;max-height:none;margin-top:18px;padding:10px 4px 4px;
+  border-top:1px solid var(--line-soft)}
+.lyrgrp{display:flex;flex-direction:column}
+.lyrslide{display:flex;flex-wrap:wrap;align-items:center;gap:2px 5px;padding:1px 7px 5px;font-size:9px;color:var(--faint)}
+.lyrslide input[type=range]{flex:1 1 100%;min-width:0;accent-color:var(--accent)}
+.lyrslide .fv{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--muted);white-space:normal;flex:1 1 100%}
+.lyrslide.dis{opacity:.35}
+.lyrslide.dis input[type=range]{cursor:not-allowed}
+.lyr{display:flex;align-items:center;gap:5px;font-size:10.5px;padding:3px 7px;white-space:nowrap;
+  border:1px solid var(--line);background:var(--surface-2);cursor:pointer;user-select:none;color:var(--muted)}
+.lyr input{position:absolute;opacity:0;width:0;height:0}
+.lyr .kx{width:8px;height:8px;border-radius:50%;flex:0 0 auto;opacity:.35}
+.lyr.on{color:var(--ink);border-color:var(--faint);background:var(--surface)}
+.lyr.on .kx{opacity:1}
+.lyr:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.lyr .ct{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--faint);margin-left:auto}
+@media(max-width:900px){.layercol{position:static}
+  .layerbar{position:static;max-height:none;flex-direction:row;flex-wrap:wrap;margin-bottom:10px}
+  .lyr{flex:0 0 auto}.lyrgrp{flex:0 0 auto}.lyr .ct{margin-left:0}}
+@media(max-width:900px){.heatbar{margin-top:0;border-top:none;padding-top:0}}
+
+.mapgrid{display:grid;grid-template-columns:196px 1fr 300px;gap:16px;align-items:start}
+@media(max-width:900px){.mapgrid{grid-template-columns:1fr}}
+.mapctrl{position:sticky;top:14px;max-height:650px;overflow-y:auto;padding-right:6px;
+  border:1px solid var(--line);background:var(--surface-2);padding:12px 14px}
+@media(max-width:900px){.mapctrl{position:static;max-height:none}}
+.mapstage{position:relative;background:var(--sunk);border:1px solid var(--line);
+  overflow:hidden;touch-action:none}
+#mapcv{display:block;width:100%;height:560px;cursor:grab}
+#mapcv.drag{cursor:grabbing}
+#mapcv.meas{cursor:crosshair}
+@media(max-width:700px){#mapcv{height:420px}}
+.tip{position:absolute;pointer-events:none;z-index:5;max-width:290px;
+  background:var(--surface);border:1px solid var(--faint);padding:8px 10px;
+  font-size:12px;line-height:1.45;box-shadow:var(--shadow)}
+.tip b{display:block;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:13.5px;margin-bottom:2px}
+.tip .row{display:flex;gap:8px;justify-content:space-between}
+.tip .row span:first-child{color:var(--muted)}
+.tip .row span:last-child{font-family:"IBM Plex Mono",monospace;text-align:right}
+.tip .hint{color:var(--faint);font-size:10.5px;margin-top:4px;font-style:italic}
+.scalebar{position:absolute;left:12px;bottom:10px;font-family:"IBM Plex Mono",monospace;
+  font-size:10px;color:var(--muted);display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.scalebar span{display:block;height:5px;border:1px solid var(--muted);border-top:none}
+.mapempty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;
+  padding:24px;font-size:13px;color:var(--muted);background:var(--sunk)}
+
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px 18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.fgrp{display:flex;flex-direction:column;gap:5px}
+.fgrp .fl{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.fgrp select,.fgrp input[type=range]{width:100%;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+.fgrp select{background:var(--surface);color:var(--ink);border:1px solid var(--line);padding:4px 6px}
+.fgrp .fv{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;
+  padding-top:12px;border-top:1px solid var(--line-soft)}
+.lg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.lg .ct{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--faint)}
+.sw{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+.lgnote{font-size:11.5px;color:var(--faint);font-style:italic}
+.lgnote em{font-style:normal;font-weight:600}
+/* ---- control column sections (legend rework, 2026-09-08) ----
+   Four labelled sections instead of three unlabelled stacks. Favourites is the
+   one that stays open by default because it is the thing being reached for; the
+   two reference lists collapse so the panel is scannable at a glance. */
+.ctrlsec{border-top:1px solid var(--line-soft);padding:12px 0 4px;margin:0}
+.mapctrl>.ctrlsec:first-child{border-top:none;padding-top:0}
+.ctrlhd{margin:0 0 2px;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--faint);font-weight:600;font-family:inherit;
+  display:flex;align-items:baseline;gap:8px}
+summary.ctrlhd{cursor:pointer;list-style:none;padding:2px 0}
+summary.ctrlhd::-webkit-details-marker{display:none}
+summary.ctrlhd::before{content:"+";font-family:"IBM Plex Mono",monospace;color:var(--faint);width:9px}
+details[open]>summary.ctrlhd::before{content:"\2212"}
+summary.ctrlhd:hover{color:var(--ink)}
+summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ctrlct{font-family:"IBM Plex Mono",monospace;letter-spacing:0;text-transform:none;
+  color:var(--muted);font-weight:400;margin-left:auto}
+.ctrlsub{margin:2px 0 8px;font-size:11.5px;color:var(--faint);line-height:1.45}
+.favsearch{width:100%;box-sizing:border-box;background:var(--sunk);color:var(--ink);
+  border:1px solid var(--line);padding:6px 8px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+.favsearch:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.favlist{max-height:212px;overflow-y:auto;margin-top:6px;
+  border:1px solid var(--line-soft);background:var(--surface)}
+.favrow{display:flex;align-items:center;gap:7px;padding:4px 8px;font-size:12px;
+  color:var(--muted);cursor:pointer;border-bottom:1px solid var(--line-soft)}
+.favrow:last-child{border-bottom:none}
+.favrow:hover{background:var(--surface-2);color:var(--ink)}
+.favrow.on{color:var(--ink);background:var(--surface-2)}
+.favrow input{margin:0;flex:0 0 auto;accent-color:var(--accent)}
+.favnm{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.favrow .ct{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--faint);flex:0 0 auto}
+.favclear{margin-top:8px;width:100%}
+
+/* ---- per-company stock cell in each ranked news item (2026-09-08) ---- */
+.stk{align-self:start;border:1px solid var(--line);background:var(--surface-2);
+  padding:9px 11px;font-family:"IBM Plex Mono",monospace;
+  display:flex;flex-direction:column;gap:2px;min-width:0}
+.stk+.stk{margin-top:8px}
+.stk .sx{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.stk .sp{font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.01em;line-height:1.15}
+.stk .sc{font-size:12px;font-weight:600}
+.stk .sc.up{color:#4bbd7d}
+.stk .sc.dn{color:var(--hot)}
+.stk .sc.fl{color:var(--faint)}
+.stk .sr{font-size:10.5px;color:var(--muted);line-height:1.5;margin-top:4px;
+  padding-top:5px;border-top:1px solid var(--line-soft)}
+.stk .sr b{color:var(--faint);font-weight:400;letter-spacing:.05em}
+.stkpair{grid-column:3;grid-row:1/span 99;align-self:start}
+
+/* ---- mobile (2026-09-08) ----
+   The masthead ticker is absolutely centred on desktop; on a phone that would
+   sit on top of the title, so it returns to normal flow here. The news items
+   drop their third column and the stock cell becomes a horizontal strip under
+   the story rather than a sidebar. */
+@media(max-width:820px){
+  .wrap{width:100%;max-width:none;padding:18px 16px 56px}
+  .mast{display:block;position:static;padding-bottom:13px}
+  .mast .lead{display:block}
+  .mast .sub{margin:6px 0 0}
+  .mast h1{font-size:31px}
+  .mast .sub{font-size:12.5px;max-width:none}
+  .mastright{display:block;margin-left:0}
+  .tickerwrap{position:static;transform:none;display:block;margin:12px 0 0}
+  .ticker{justify-content:flex-start;display:inline-flex}
+  .edition{text-align:left;margin:12px 0 0}
+  .edition .n{font-size:23px}
+  .signals{grid-template-columns:1fr}
+  .item{grid-template-columns:26px minmax(0,1fr);padding:14px 14px;gap:0 10px}
+  .item>.stk,.item>.stkpair{grid-column:1/span 2;grid-row:auto;margin-top:11px}
+  .stkpair{display:flex;gap:8px}
+  .stkpair .stk{flex:1 1 0;margin-top:0}
+  .stk{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:3px 12px;padding:8px 10px}
+  .stk .sx{flex:1 0 100%}
+  .stk .sp{font-size:17px}
+  .stk .sr{flex:1 0 100%;margin-top:2px;padding-top:4px}
+  .stkpair .stk{flex-direction:column}
+  .co{font-size:16px}
+  .when{margin-left:0;flex-basis:100%}
+  .maphead{display:block}
+  .mapbtns{margin:10px 0 0}
+  .mapctrl{padding:11px 12px}
+  .favlist{max-height:176px}
+  #mapcv{height:400px}
+  .tip{max-width:230px;font-size:11.5px}
+  .filters{grid-template-columns:1fr}
+  .tblwrap{-webkit-overflow-scrolling:touch}
+}
+@media(max-width:430px){
+  .wrap{padding:14px 12px 46px}
+  .mast h1{font-size:27px}
+  .item{grid-template-columns:1fr}
+  .item>*{grid-column:1}
+  .rank{display:none}
+  .stkpair{flex-direction:column}
+  #mapcv{height:340px}
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="lead">
+    <div class="titlecol">
+      <h1>Basin Watch</h1>
+      <div class="wir">Week in review</div>
+    </div>
+    <p class="sub">Daily Athabasca Basin uranium briefing, covering Saskatchewan juniors and majors, ranked by news-release materiality. News and tenure movement are tracked on the companion Basin Explorer map. A new edition publishes every day at 8:00 a.m. CST.</p>
+  </div>
+  <div class="tickerwrap"><div class="ticker">
+    <span class="tksym mono">U₃O₈</span>
+    <span class="tkpx mono">$123.61</span>
+    <span class="tklbl">CA$/lb</span>
+    <span class="tksrc">Aug month-end avg · US$89.68 at 1.3784</span>
+  </div></div>
+  <div class="mastright">
+    <div class="edition">
+      <div class="n mono">2026-09-09</div>
+      <div class="d edd">Sept 03 – Sept 09</div>
+      <div class="d edd">Edition 001</div>
+    </div>
+  </div>
+</header>
+
+<section class="signals">
+  <div class="sig hot">
+    <span class="k">Metres drilled</span>
+    <span class="v mono">10,159</span>
+    <span class="n">IsoEnergy's 26-hole summer program at Larocque East - strongest core radioactivity yet on the Hurricane South trend, assays pending</span>
+  </div>
+  <div class="sig">
+    <span class="k">Financing raised</span>
+    <span class="v mono">$2.0M</span>
+    <span class="n">Terra Clean Energy's brokered private placement for South Falcon East, general working capital</span>
+  </div>
+  <div class="sig">
+    <span class="k">Geophysical surveys</span>
+    <span class="v mono">3</span>
+    <span class="n">Stallion, Terra North and Canadian Uranium - gravity, radiometric and MobileMT across three projects</span>
+  </div>
+  <div class="sig hot">
+    <span class="k">Lapsing by 16 Sep</span>
+    <span class="v mono">49</span>
+    <span class="n">active dispositions reach their good-standing date inside seven days - 13 Eagle Plains, 11 Orano, 6 Mine-Find Geochem</span>
+  </div>
+</section>
+
+<h2 class="sec">Ranked by technical materiality</h2>
+
+<div class="news">
+
+  <article class="item lead">
+    <div class="rank mono">01</div>
+    <div class="body">
+      <div class="hd"><span class="co">IsoEnergy</span><span class="tk">TSX:ISO</span><span class="when mono">8 Sep</span></div>
+      <p class="ttl"><a href="https://www.prnewswire.com/news-releases/isoenergy-completes-summer-drilling-at-larocque-east-intersecting-widespread-and-strongest-radioactivity-to-date-along-the-hurricane-south-trend-302871790.html">IsoEnergy Completes Summer Drilling at Larocque East, Intersecting Widespread and Strongest Radioactivity to Date Along the Hurricane South Trend</a></p>
+      <p class="why"><b>26 holes for 10,159 m, and every number in the release is a counts-per-second reading, not a grade.</b> The program overran its 8,000 m / 20-hole plan and brings 2026 to 16,963 m in 43 holes. Best intervals are LE26-250 on the West L Fault, 3.5 m at <span class="g-cps">11,075 cps</span> from 341.0 m including 0.5 m at <span class="g-cps">43,160 cps</span>; LE26-273, 3.0 m at <span class="g-cps">14,135 cps</span> from 328.0 m including 1.0 m at <span class="g-cps">36,292 cps</span>; and LE26-254 on the East L Fault, 2.0 m at <span class="g-cps">10,110 cps</span> from 331.5 m. Eighteen of the 26 holes returned at least <span class="g-cps">350 cps</span> over half a metre, 13 exceeded <span class="g-cps">1,000 cps</span>. These are handheld RS-125 spectrometer totals taken on core - not a chemical assay, and not calibrated downhole gamma either, so they cannot be read as a percentage or converted into one. What they do establish is spatial: mineralization is now widespread along the Hurricane South trend rather than confined to isolated holes. Samples are at SRC with no stated turnaround. What's missing: any assay from the summer program, any cps-to-grade correlation for these holes, and a date for either.</p>
+      <div class="chips">
+      <span class="chip g">3.5 m @ 11,075 cps, LE26-250</span>
+      <span class="chip">0.5 m @ 43,160 cps, peak reading</span>
+      <span class="chip">10,159 m in 26 holes</span>
+      <span class="chip">18 of 26 holes ≥350 cps over 0.5 m</span>
+      <span class="chip">West and East L Fault, Hurricane South trend</span>
+      <span class="chip warn">handheld cps on core - not a grade, assays pending</span>
+    </div>
+    </div>
+    <div class="stk"><span class="sx">TSX:ISO · CAD · 9 Sep</span><span class="sp">16.39</span><span class="sc up">+3.02%</span><span class="sr"><b>52-WK</b> 10.19 – 18.47</span><span class="sr"><b>VOL</b> 154.8K / 210.4K avg</span><span class="sr"><b>MKT CAP</b> $1.07B · 65.3M sh</span></div>
+  </article>
+
+  <article class="item">
+    <div class="rank mono">02</div>
+    <div class="body">
+      <div class="hd"><span class="co">Terra Clean Energy</span><span class="tk">CSE:TCEC</span><span class="when mono">9 Sep</span></div>
+      <p class="ttl"><a href="https://www.manilatimes.net/2026/09/09/tmt-newswire/globenewswire/terra-clean-energy-announces-20-million-brokered-private-placement-led-by-centurion-one-capital/2421020">Announces $2.0 Million Brokered Private Placement Led by Centurion One Capital</a></p>
+      <p class="why"><b>A modest raise with no catalyst attached.</b> Up to 14,285,714 units at $0.14 (Centurion One Capital as lead agent, 8% cash fee plus broker warrants), with the agent holding an option for a further $300,000. Each unit carries a warrant exercisable at $0.22 for three years, with an acceleration clause if the stock trades above $0.44 for 15 straight days. Proceeds are earmarked for capital expenditures and general working capital rather than a named program at South Falcon East, and the release ties the raise to no specific drill or permitting milestone. Expected to close around 5 October, subject to CSE approval and the standard four-month-and-a-day hold.</p>
+      <div class="chips">
+      <span class="chip s">$2.0M brokered PP</span>
+      <span class="chip">14.29M units @ $0.14</span>
+      <span class="chip">warrants @ $0.22, 3-yr</span>
+      <span class="chip">optional +$300K over-allotment</span>
+      <span class="chip warn">no program or milestone named for proceeds</span>
+    </div>
+    </div>
+    <div class="stk"><span class="sx">CSE:TCEC · CAD · 9 Sep</span><span class="sp">0.130</span><span class="sc fl">0.00%</span><span class="sr"><b>52-WK</b> 0.08 – 0.21</span><span class="sr"><b>VOL</b> 18.5K / 108.0K avg</span><span class="sr"><b>MKT CAP</b> $7.88M</span></div>
+  </article>
+
+  <article class="item">
+    <div class="rank mono">03</div>
+    <div class="body">
+      <div class="hd"><span class="co">Stallion Uranium</span><span class="tk">TSX-V:STUD</span><span class="when mono">3 Sep</span></div>
+      <p class="ttl"><a href="https://www.juniorminingnetwork.com/junior-miner-news/press-releases/2599-tsx-venture/stud/210305-stallion-completes-ground-gravity-identifies-three-new-priority-target-areas-at-stone-island.html">Completes Ground Gravity, Identifies Three New Priority Target Areas at Stone Island</a></p>
+      <p class="why"><b>Gravity now stacked on top of VTEM.</b> A 519-station ground gravity survey (0.02 mGal mean accuracy) was tied to roughly 690 line-km of VTEM Plus flown earlier in 2026, defining three target areas. Target A is the priority: a north-trending EM conductor coincides with the principal gravity low, the combination the company reads as the strongest structural disruption on the property. B is a northern extension on a distinct gravity gradient, C a separate southwestern target with a discrete conductor. No resistivity depth or conductor strike length is stated yet - next step is conductor modelling and resistivity-depth interpretation before ranking targets for drill testing.</p>
+      <div class="chips">
+      <span class="chip s">519-station gravity, 0.02 mGal</span>
+      <span class="chip s">~690 line-km VTEM</span>
+      <span class="chip">3 target areas, A/B/C</span>
+      <span class="chip">Target A: conductor + gravity low coincidence</span>
+    </div>
+    </div>
+    <div class="stk"><span class="sx">TSXV:STUD · CAD · 9 Sep</span><span class="sp">0.160</span><span class="sc fl">0.00%</span><span class="sr"><b>52-WK</b> 0.13 – 0.53</span><span class="sr"><b>VOL</b> 83.0K / 307.4K avg</span><span class="sr"><b>MKT CAP</b> $24.77M · 150.1M sh</span></div>
+  </article>
+
+  <article class="item">
+    <div class="rank mono">04</div>
+    <div class="body">
+      <div class="hd"><span class="co">Terra North Resources</span><span class="tk">TSXV:GEMC</span><span class="when mono">8 Sep</span></div>
+      <p class="ttl"><a href="https://www.juniorminingnetwork.com/junior-miner-news/press-releases/1155-tsx-venture/gemc/210491-global-energy-metals-highlights-identification-of-prominent-radiometric-anomalies-at-charlot-neely-lake-uranium-project.html">Prominent Radiometric Anomalies Identified at Charlot-Neely Lake</a></p>
+      <p class="why">First look at a new airborne dataset over Terra North's Charlot-Neely Lake ground, about 20 km north of Uranium City. 2,441 line-km of high-resolution radiometric and magnetic survey across 163.7 km² resolved seven uranium-thorium radiometric anomalies, one of them north of Neely Lake where historical outcrop sampling reportedly ran up to <span class="g-assay">0.8% U₃O₈</span>. No anomaly-by-anomaly dimensions or coordinates are given, and radiometrics read surface and near-surface signal only, not depth. The release comes from Global Energy Metals (TSXV:GEMC), which holds a 0.5% NSR royalty across Terra North's Saskatchewan portfolio rather than operating the ground - Terra North itself is private, holds an option on the project from Fulcrum Metals Canada Ltd., and is 39.5%-owned by Terra Balcanica Resources (CSE:TERA). New to this brief on both counts.</p>
+      <div class="chips">
+      <span class="chip s">2,441 line-km airborne radiometric + magnetic</span>
+      <span class="chip s">163.7 km² survey area</span>
+      <span class="chip">7 radiometric anomalies</span>
+      <span class="chip">historical outcrop up to 0.8% U₃O₈, N of Neely Lake</span>
+      <span class="chip warn">radiometric signal only, no drill or depth data</span>
+    </div>
+    </div>
+    <div class="stk"><span class="sx">TSXV:GEMC · CAD</span><span class="sp">-</span><span class="sc fl">-</span><span class="sr"><b>52-WK</b> -</span><span class="sr"><b>VOL</b> -</span><span class="sr"><b>MKT CAP</b> -</span></div>
+  </article>
+
+  
+
+  <article class="item">
+    <div class="rank mono">05</div>
+    <div class="body">
+      <div class="hd"><span class="co">Canadian Uranium</span><span class="tk">CSE:CANU</span><span class="when mono">3 Sep</span></div>
+      <p class="ttl"><a href="https://www.juniorminingnetwork.com/junior-miner-news/press-releases/3274-cse/canu/210293-canadian-uranium-announces-completion-of-king-south-mt-survey.html">Announces Completion of King South MT Survey</a></p>
+      <p class="why">696 line-km of MobileMT flown east-west over King South, eastern basin. This is a completion notice, not a results release - the company says interpretation is weeks out. The one substantive line is a structural pitch: management frames the survey as testing the same deep-structure setting that produced Patterson Lake South and Arrow. That framing is not a target, and there is nothing here yet to rank on dimension or coincidence.</p>
+      <div class="chips">
+      <span class="chip s">696 line-km MobileMT</span>
+      <span class="chip warn">interpretation pending, no targets yet</span>
+    </div>
+    </div>
+    <div class="stk"><span class="sx">CSE:CANU · CAD · 9 Sep</span><span class="sp">1.17</span><span class="sc fl">0.00%</span><span class="sr"><b>52-WK</b> 0.26 – 1.59</span><span class="sr"><b>VOL</b> 14.8K / 22.5K avg</span><span class="sr"><b>MKT CAP</b> $34.26M</span></div>
+  </article>
+
+  <article class="item">
+    <div class="rank mono">06</div>
+    <div class="body">
+      <div class="hd"><span class="co">Green Canada Uranium</span><span class="tk">TSXV:GCUC</span><span class="when mono">9 Sep</span></div>
+      <p class="ttl"><a href="https://www.newsfilecorp.com/release/313517/Green-Canada-Uranium-Mobilizes-Drill-to-Marshall-Project-Athabasca-Basin-Saskatchewan">Mobilizes Drill to Marshall Project, Athabasca Basin, Saskatchewan</a></p>
+      <p class="why">First drilling under Green Canada's own name, on its first day trading following an RTO. Two holes are planned at the 11,225-hectare Marshall property, roughly 30 km southwest of CanAlaska's West McArthur Pike Zone, testing an unconformity-style target beneath sandstone cover. The company holds Marshall through a 51% option into North Millennium's underlying interest. No metreage, timeline or target dimensions are given - this is a mobilization notice, not a results release.</p>
+      <div class="chips">
+      <span class="chip">2 holes, maiden drill</span>
+      <span class="chip">11,225 ha Marshall property</span>
+      <span class="chip">~30 km SW of West McArthur Pike Zone</span>
+      <span class="chip">unconformity-style target</span>
+      <span class="chip warn">no metres, timeline, or target dimensions given</span>
+    </div>
+    </div>
+    <div class="stk"><span class="sx">TSXV:GCUC · CAD</span><span class="sp">-</span><span class="sc fl">-</span><span class="sr"><b>52-WK</b> -</span><span class="sr"><b>VOL</b> -</span><span class="sr"><b>MKT CAP</b> -</span></div>
+  </article>
+
+  <article class="item">
+    <div class="rank mono">07</div>
+    <div class="body">
+      <div class="hd"><span class="co">Skyharbour Resources</span><span class="tk">TSX-V:SYH</span><span class="when mono">3 Sep</span></div>
+      <p class="ttl"><a href="https://www.juniorminingnetwork.com/junior-miner-news/press-releases/1017-tsx-venture/syh/210332-skyharbour-files-independent-ni-43-101-technical-reports-on-its-co-flagship-moore-and-russell-lake-uranium-projects-saskatchewan.html">Files Independent NI 43-101 Technical Reports on Moore and Russell Lake</a></p>
+      <p class="why">Administrative rather than exploration: two independent technical reports (Moore, 100%-owned; Russell Lake, JV with Denison) compiling historical and recent data, neither carrying a resource or reserve estimate. Filed to support an Annual Information Form and a potential Nasdaq uplisting from OTCQX, not to report new drilling.</p>
+      <div class="chips">
+      <span class="chip">2 NI 43-101 reports filed</span>
+      <span class="chip warn">no resource estimate in either</span>
+      <span class="chip">supports AIF / possible Nasdaq uplisting</span>
+    </div>
+    </div>
+    <div class="stk"><span class="sx">TSXV:SYH · CAD · 9 Sep</span><span class="sp">0.51</span><span class="sc fl">0.00%</span><span class="sr"><b>52-WK</b> 0.30 – 0.66</span><span class="sr"><b>VOL</b> 481.7K / 438.3K avg</span><span class="sr"><b>MKT CAP</b> $115.0M · 221.3M sh</span></div>
+  </article>
+
+</div>
+
+<div class="note">
+  <span class="h">Rigs already turning, started just before the window</span>
+  <b>Xcite Uranium (CSE:XRI) and Eagle Plains (TSXV:EPL)</b> began a 1,200 m, three-hole program at the past-producing Lorado project on 1 September, testing coincident EM conductor and magnetic-break targets flagged by radon and soil geochemistry. Lorado mined 95,000 t at <span class="g-assay">0.19% U₃O₈</span> between 1957 and 1960, Beaverlodge-type structurally controlled mineralization. No assays yet. Dropped out of the ranked list this edition only because the start date fell out of the seven-day window.
+</div>
+
+<div class="note">
+  <span class="h">Majors: one drill start, and an unusually quiet week otherwise</span>
+  <b>CanAlaska Uranium (TSXV:CVV)</b> mobilised a single rig to Key Extension on 8 September, 100% owned, about 15 km south of the Key Lake mill. Six to ten holes are planned to late October, testing up-ice of the Orchid Lake boulder field along a western conductive trend with more than 10 km of sparsely tested conductive stratigraphy. Winter holes KEY017 and KEY018 hit graphitic stratigraphy with semi-brittle faulting and localised chlorite-clay alteration; those geochemical results are still outstanding. No metreage, budget or contractor given. Historical Orchid Lake boulder grabs ran up to <span class="g-assay">0.13% uranium</span>, and the release itself flags them as selective and not representative.<br><br>
+  <b>Cameco, Orano, Denison, NexGen and Uranium Energy Corp issued no releases in the window.</b> NexGen held its investor day on 1 September as a pre-recorded event on Rook I construction but published nothing alongside it. UEC has been silent since 23 July; the Roughrider pre-feasibility study is still unreleased, with the last substantive status the June quarterly that had drilling roughly 80% complete and Tetra Tech engaged. UEC's fiscal year ends 31 July, so full-year results around October are the next scheduled opening for it.
+</div>
+
+<div class="note">
+  <span class="h">Community agreements and road access, the class of news this brief has not been carrying</span>
+  Three items from late August that no aggregator on the news sweep reported, all of them ahead of the permitting decisions they gate. <b>Paladin Canada and Birch Narrows Dene Nation signed a Mutual Benefits Agreement covering Patterson Lake South for the life of the project (31 August).</b> <b>IsoEnergy signed an Exploration Agreement with Kineepik M&eacute;tis Local Inc.</b> on 24 August, a framework for engagement, information sharing and community participation in exploration. And on 25 August the <b>Clearwater River Dene Nation activated an industry monitoring checkpoint on Highway 955 north of La Loche</b>, citing what it called an unprecedented pace of uranium exploration in its traditional territory. Highway 955 is the only all-season road into the southwestern basin, so that last one is an access and logistics fact for every operator working west of Cluff Lake this season, not a single company's story. All three sit just outside the 2-8 September window and are carried here as context.
+</div>
+
+<div class="note">
+  <span class="h">Out of basin, but on the watchlist</span>
+  <b>ATHA Energy (TSXV:SASK), 8 September, Rib North at Angilak, Nunavut.</b> Seven holes (RIBN-DD-010 to -016A) extend the mineralized corridor from the 300 m defined at discovery in 2025 to 1.45 km of strike on the eastern limb, open in all directions. RIBN-DD-011 returned 20.0 m of composite mineralization over fifteen zones between 494.0 m and 700.5 m, including a 1.5 m interval at 661.5-663.0 m averaging <span class="g-cps">8,453 cps</span> with a <span class="g-cps">26,680 cps</span> peak; RIBN-DD-013A returned 13.0 m composite over five zones, RIBN-DD-014 7.0 m over six. Every number is a downhole total-count reading from a Mount Sopris 40TGU-1000 probe, not a calibrated eU₃O₈ conversion and not a chemical assay, so none of it converts to a percentage - the company's own thresholds are <span class="g-cps">300 cps</span> for mineralization and <span class="g-cps">10,000 cps</span> for high grade. Angilak is Archean-hosted vein-style mineralization in the Kivalliq, geologically unrelated to the basin. Carried because ATHA holds Gemini and a large basin package; not ranked against basin results.<br><br>
+  <b>North Shore Uranium (TSXV:NSU), 3 September, Rio Puerco, New Mexico.</b> Phase 1 returned 3.8 m at <span class="g-assay">0.331% eU₃O₈</span> and 8.2 m at <span class="g-assay">0.295% eU₃O₈</span>, both gamma-derived and unverified by assay, from a Morrison Formation sandstone roll-front in the Grants district - nothing in common with the basin's unconformity and basement-hosted style. Carried because North Shore is a basin operator (Falcon, West Bear).
+</div>
+
+<div class="mapttl toptitle">
+  <h3>Basin Explorer<a class="xopenmap" href="https://claude.ai/code/artifact/47766502-5368-43a1-9a1e-6e007f270bbc" target="_blank" rel="noopener" aria-label="Open Basin Explorer in a new tab" title="Open in a new tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></a></h3>
+</div>
+
+<div class="mapcard">
+  <div class="mapgrid">
+    <div class="layercol">
+      <div class="layerbar" id="layerbar"></div>
+      <div class="layerbar heatbar" id="heatbar"></div>
+    </div>
+
+    <div class="mapmain">
+      <div class="maphead">
+        <div class="mapbtns">
+          <button type="button" id="mMeasure" class="mbtn" aria-pressed="false">Measure</button>
+          <button type="button" id="mReset" class="mbtn">Reset view</button>
+        </div>
+      </div>
+
+      <div class="mapstage" id="mapstage">
+        <canvas id="mapcv"></canvas>
+        <div class="tip" id="tip" hidden></div>
+        <div class="scalebar"><span id="scaleLine"></span><em id="scaleTxt"></em></div>
+        <div class="mapempty" id="mapempty" hidden></div>
+      </div>
+    </div>
+
+    <div class="mapctrl">
+
+      <details class="ctrlsec" open>
+        <summary class="ctrlhd">This week's stakers</summary>
+        <div class="legend" id="newclaimkey" style="margin-top:0;padding-top:8px;border-top:none"></div>
+      </details>
+
+      <details class="ctrlsec">
+        <summary class="ctrlhd">Favourites <span class="ctrlct" id="favct">none selected</span></summary>
+        <p class="ctrlsub">Tick any number of companies to bring their claims, new claims and grade releases forward. Everything else dims back.</p>
+        <input type="search" id="favsearch" class="favsearch" placeholder="Search companies" autocomplete="off" spellcheck="false">
+        <div class="favlist" id="favlist"></div>
+        <button type="button" class="mbtn favclear" id="favclear">Clear favourites</button>
+      </details>
+
+      <details class="ctrlsec">
+        <summary class="ctrlhd">Top 10 holders</summary>
+        <div class="legend" id="topholders" style="margin-top:0;padding-top:8px;border-top:none"></div>
+      </details>
+
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <span class="h">GEM Oil is not a new entrant. It is a re-entrant - and its newest claim isn't in the basin at all</span>
+  GEM OIL INC., an oil and gas name, took five uranium claims on 3-4 September inside its existing footprint - the company also sits on <b>at least 40 lapsed dispositions</b>, a near-contiguous run from <span class="mono">MC00018904</span> to <span class="mono">MC00018948</span>, so this reads as ground it already held and let go rather than an outside sector wandering in for the first time. A sixth claim, <span class="mono">MC00024173</span>, staked 8 September, sits roughly 370 km southeast of that ground and the rest of the basin, about 35 km north of Flin Flon (55.07&deg;N, 101.95&deg;W) - Precambrian Shield country in the Flin Flon greenstone belt, a base-metals district with no geological connection to the basin's unconformity uranium plays. Whether that is a second front or a filing error two provinces removed from the company's other claims isn't something the registry resolves.
+</div>
+
+
+<div class="tblwrap">
+<table class="tbl">
+  <caption>Registry state, week ending 2026-09-09</caption>
+  <thead><tr><th>Measure</th><th>Now</th><th>Week ago</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td>Active dispositions</td><td class="num">7,464</td><td class="num">7,463</td><td>One new disposition entered 8 September (GEM Oil, outside the basin - see note); nothing else staked since 4 September</td></tr>
+    <tr><td>Lapsed register</td><td class="num">368</td><td class="num">368</td><td>No movement in or out this week</td></tr>
+    <tr><td>Staked 3-9 Sep, corporate</td><td class="num">23</td><td class="num">36</td><td>CanAlaska 11, GEM Oil 6, Cosa 3, Skyharbour 2, Standard Uranium 1</td></tr>
+    <tr><td>Staked 3-9 Sep, individuals</td><td class="num">38</td><td class="num">39</td><td>None has transferred to a corporate holder</td></tr>
+    <tr><td>Good standing expiring by 16 Sep</td><td class="num">49</td><td class="num">28</td><td>Eagle Plains 13, Orano 11, Mine-Find Geochem 6, Golden Band 4, then singles and small holders including Skyharbour, Argo Gold, Greenridge, GEM Oil and ATHA</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+  <span class="h">Ground coming open: 49 dispositions inside seven days, 270 inside thirty</span>
+  <b>Eagle Plains Resources is the largest single block reaching its good-standing date by 16 September, at 13 dispositions</b>, followed by Orano Canada with 11 and Mine-Find Geochem with 6. Golden Band Resources has 4, Skyharbour and Argo Gold 2 each, and there are singles from Greenridge, GEM Oil and ATHA Energy. Widen the horizon to 30 days and the count is unchanged at 270, still dominated by <b>a 127-disposition block registered to one individual, Ryan Kalt</b>, with Greenridge Exploration on 18, Eagle Plains and Orano on 13 each, Murchison Minerals on 12 and CanAlaska on 7. A block that size held personally and expiring together is the single largest piece of ground scheduled to come open in the basin this autumn.<br><br>
+  Saskatchewan does not warn a holder before a claim goes: the registry manual states a claim lapses without notice where work credits are short and no deficiency deposit has been made. So the good-standing date is a hard deadline rather than the start of a grace period. The 278 dispositions currently showing an expired date while still flagged active are almost all recent - 275 of them fell due this year, 195 within the last 90 days - which is the registry catching up rather than ground still held. The pink outlines on the map are the seven-day set.
+</div>
+
+<h2 class="sec">Archive</h2>
+<div class="arch">
+  <div class="arow"><span class="ad">2026-09-09</span><span class="cur">No. 001 · current edition</span><span class="as">Week in review, 3-9 Sep · IsoEnergy's Larocque East summer program leads · 7 items ranked, incl. new Terra Clean Energy financing and Green Canada Uranium's first-day-of-trading Marshall mobilisation · one new disposition (GEM Oil, staked 370 km outside the basin near Flin Flon) · 49 dispositions expiring by 16 Sep, Eagle Plains now the largest holder · lapsed register unchanged · F4 Uranium's Wales Lake MT release aged out of window</span></div>
+  </div>
+
+<footer>
+</footer>
+
+</div>
+<script>window.BASIN_BUNDLE=/*__BUNDLE__*/;</script>
+<script>
+(function(){
+"use strict";
+var B = window.BASIN_BUNDLE || {};
+var cv = document.getElementById('mapcv'), stage = document.getElementById('mapstage');
+if(!cv) return;
+var ctx = cv.getContext('2d'), tip = document.getElementById('tip');
+var CSSV = getComputedStyle(document.documentElement);
+function tok(n,f){ var v=CSSV.getPropertyValue(n); return (v&&v.trim())||f; }
+
+/* ---------- Lambert conformal conic, SP 49N/60N, CM 106W ---------- */
+var PROJ=(function(){
+  var R=6371,d=Math.PI/180,p1=49*d,p2=60*d,p0=57*d,l0=-106*d;
+  var n=Math.log(Math.cos(p1)/Math.cos(p2))/Math.log(Math.tan(Math.PI/4+p2/2)/Math.tan(Math.PI/4+p1/2));
+  var F=Math.cos(p1)*Math.pow(Math.tan(Math.PI/4+p1/2),n)/n;
+  var r0=R*F/Math.pow(Math.tan(Math.PI/4+p0/2),n);
+  return function(lon,lat){ var r=R*F/Math.pow(Math.tan(Math.PI/4+lat*d/2),n),t=n*(lon*d-l0);
+    return [r*Math.sin(t), -(r0-r*Math.cos(t))]; };
+})();
+function km(a,b){var d=Math.PI/180,R=6371,dLa=(b[1]-a[1])*d,dLo=(b[0]-a[0])*d;
+  var s=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[1]*d)*Math.cos(b[1]*d)*Math.sin(dLo/2)*Math.sin(dLo/2);
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
+
+/* ---------- UTM Zone 13N (EPSG:26913, NAD83/GRS80) - same zone the basin
+   outline shapefile is supplied in (see map-pipeline.md "Basin outline is
+   fixed"). Forward transform only (lon/lat -> easting/northing); the grid
+   below needs the inverse (which E/N line passes through a given point), so
+   it numerically inverts via bisection instead of a closed-form inverse -
+   simpler to get right and plenty precise for a reference grid at this
+   scale. Replaces the lat/long graticule on Ezra's request, 2026-09-07
+   (night). ---------- */
+var UTM13=(function(){
+  var a=6378137.0, f=1/298.257222101, e2=f*(2-f), ep2=e2/(1-e2), k0=0.9996, lon0=-105*Math.PI/180, d=Math.PI/180;
+  function M(lat){ return a*((1-e2/4-3*e2*e2/64-5*e2*e2*e2/256)*lat
+    -(3*e2/8+3*e2*e2/32+45*e2*e2*e2/1024)*Math.sin(2*lat)
+    +(15*e2*e2/256+45*e2*e2*e2/1024)*Math.sin(4*lat)
+    -(35*e2*e2*e2/3072)*Math.sin(6*lat)); }
+  return function(lonDeg,latDeg){ var lat=latDeg*d,lon=lonDeg*d;
+    var Nr=a/Math.sqrt(1-e2*Math.sin(lat)*Math.sin(lat));
+    var T=Math.tan(lat)*Math.tan(lat),C=ep2*Math.cos(lat)*Math.cos(lat);
+    var Am=(lon-lon0)*Math.cos(lat);
+    var E=k0*Nr*(Am+(1-T+C)*Math.pow(Am,3)/6+(5-18*T+T*T+72*C-58*ep2)*Math.pow(Am,5)/120)+500000;
+    var Nn=k0*(M(lat)+Nr*Math.tan(lat)*(Am*Am/2+(5-T+9*C+4*C*C)*Math.pow(Am,4)/24+(61-58*T+T*T+600*C-330*ep2)*Math.pow(Am,6)/720));
+    return [E,Nn]; };
+})();
+/* Deficiency-deposit ("$ to hold") figure for the Lapsing Within 7 Days hover, added
+   2026-09-09. Saskatchewan's Mineral Tenure Registry Regulations (RRS c C-50.2 Reg 27,
+   s.71) price a deficiency deposit at exactly the missed expenditure requirement for the
+   assessment work period (Table 2): NIL in a claim's first 12-month period since
+   registration, $15/ha (min $240/claim) for the 2nd-10th periods, $25/ha (min $400/claim)
+   for the 11th period on. Area is computed here from the same tenure ring geometry the map
+   already draws (UTM13 projection + shoelace), not the registry's own Shape__Area field,
+   which isn't carried into this bundle - a defensible stand-in, not the authoritative figure. */
+function polyAreaHa(ring){ if(!ring||ring.length<3)return 0;
+  var pts=ring.map(function(p){return UTM13(p[0],p[1]);}),s=0;
+  for(var i=0;i<pts.length-1;i++){ s+=pts[i][0]*pts[i+1][1]-pts[i+1][0]*pts[i][1]; }
+  return Math.abs(s)/2/10000; }
+function depositFor(effIso,gsIso,areaHa){
+  if(!effIso||!gsIso)return null;
+  var eff=new Date(effIso+'T00:00:00Z'),gs=new Date(gsIso+'T00:00:00Z');
+  if(isNaN(eff)||isNaN(gs))return null;
+  var period=Math.round((gs-eff)/86400000/365.25);
+  if(period<=1)return 0;
+  var rate=period<=10?15:25, minC=period<=10?240:400;
+  return Math.max(areaHa*rate,minC); }
+function bisect1d(fn,lo,hi,target){ var flo=fn(lo)-target,fhi=fn(hi)-target;
+  if(flo!==flo||fhi!==fhi||flo*fhi>0) return null;
+  for(var i=0;i<24;i++){ var mid=(lo+hi)/2,fm=fn(mid)-target;
+    if((fm<0)===(flo<0)){lo=mid;flo=fm;} else {hi=mid;fhi=fm;} }
+  return (lo+hi)/2; }
+
+/* ---------- data-level filters (2026-09-07) ----------
+   Two of Ezra's asks, both applied at ingest so every downstream consumer
+   (ranking, colouring, drawing) sees the same filtered data - no separate
+   "view crop" vs "data crop" split this time (an earlier version of the
+   6250N ask was deliberately kept view-only; Ezra confirmed afterward he
+   wants the data itself cut, so this replaces that).
+
+   1. North cutoff: drop anything that never reaches UTM Zone 13N Northing
+      6,250,000 m ("Athabasca basin only"). Ring/line features keep if ANY
+      vertex is north of the line (partial overlap survives); point features
+      test directly. The one exception is the basin outline polygon itself -
+      that's Ezra's supplied survey shapefile, never filtered or re-derived
+      (see map-pipeline.md "Basin outline is fixed").
+   2. SGO Mining Inc. exclusion: 316 of 7,461 tenure records on the current
+      snapshot are 100%-SGO and were skewing the top-holder ranking, so its
+      records are dropped from the tenure/claims data entirely, not just
+      hidden from the ranking. */
+var NORTH_CUT_M=6250000;
+function northOK(lon,lat){ return UTM13(lon,lat)[1]>=NORTH_CUT_M; } // keep only north of the line, matches the grid ticks
+function ringNorthOK(r){ return (r||[]).some(function(p){ return northOK(p[0],p[1]); }); }
+function isSGO(o){ return /sgo mining/i.test(o||''); }
+/* Basemap bounding-box crop for Lakes, Roads (Highways) and Towns & Settlements
+   ONLY (2026-09-09, Ezra: cut off everything north of 6700N, south of 6200N,
+   west of 100E and east of 700E - dead space was piling up on the map's
+   margins from these three background layers reaching far outside the basin).
+   Does NOT touch tenure, claims, deposits, conductors, footprints, heat grids
+   or news waypoints - none of those were named, and none of this changes the
+   6250N-only cut those layers already use. UTM Zone 13N, metres. */
+var BOX_E_MIN=100000, BOX_E_MAX=700000, BOX_N_MIN=6200000, BOX_N_MAX=6700000;
+function inBoxOK(lon,lat){ var u=UTM13(lon,lat);
+  return u[0]>=BOX_E_MIN&&u[0]<=BOX_E_MAX&&u[1]>=BOX_N_MIN&&u[1]<=BOX_N_MAX; }
+/* every(), not some(): the box has four sides, unlike the single-line 6250N cut, so
+   "at least one vertex inside" lets a ring/line that mostly sits OUTSIDE the box still
+   render in full as long as it clips one corner of it - confirmed live on 2026-09-09
+   (3 of 40 lakes had one vertex just inside the box but extended south to UTM
+   N=6,156,821, well past the 6,200,000 south bound, and rendered there anyway). The
+   box is convex, so requiring every vertex inside guarantees the whole feature is
+   inside - no partial leakage outside the box is possible either way. */
+function ringInBoxOK(r){ return (r||[]).length>0 && (r||[]).every(function(p){ return inBoxOK(p[0],p[1]); }); }
+var TENURE_F=(B.tenure||[]).filter(function(t){ return !isSGO(t.o)&&ringNorthOK(t.r); });
+var CLAIMS_F=(B.claims||[]).filter(function(c){ return !isSGO(c.o)&&northOK(c.x,c.y); });
+
+/* ---------- holder colours: 3 validated slots + neutral ---------- */
+var SLOT=[tok('--s1','#2a78d6'),tok('--s2','#eb6834'),tok('--s3','#1baf7a')];
+var OTHER=tok('--sother','#9aa39a');
+/* 8-hue validated categorical family - legal here (new-claim companies only,
+   almost never more than a handful in a week) because this is an "isolate the
+   handful of corporate stakers, grey out individuals" treatment layered on top
+   of the map, not a simultaneous-all-pairs claim-outline fill - see
+   map-pipeline.md "New-claim colours" for the reasoning and the accessibility
+   trade-off this accepts once past 3 companies in a single week. */
+var FAM8=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
+/* 2026-09-07 bug: tenure holder strings sometimes carry doubled internal
+   whitespace ("STANDARD URANIUM (SASKATCHEWAN)  LTD.") that the same
+   company's claims-feed string doesn't ("...  LTD." vs "... LTD."), so the
+   two didn't match after stripping the ownership suffix - a real company's
+   new claims fell through to grey because the key it was ranked under
+   didn't equal the key its polygons were drawn under. Collapsing all
+   whitespace runs to one space fixes this for every holder, not just this
+   one instance. */
+function shortHolder(o){ return (o||'').replace(/:\s*[\d.]+%/g,'').replace(/;\s*$/,'').replace(/\s+/g,' ').trim(); }
+var tenureCount={};   // keyed by NORMALIZED holder name so a joint-venture's
+TENURE_F.forEach(function(t){ var o=shortHolder(t.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });  // ownership-% suffix doesn't fragment its count
+if(!Object.keys(tenureCount).length)   // before the tenure pull, fall back to the week's claims
+  CLAIMS_F.forEach(function(c){ var o=shortHolder(c.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });
+var topHolders=Object.keys(tenureCount).sort(function(a,b){return tenureCount[b]-tenureCount[a];});
+/* same corp/individual test the data pipeline uses for new-claim's `corp`
+   flag (basin_layers.py: URANIUM/RESOURCES/GEM OIL/CORP/LTD/INC in the
+   holder string), reimplemented here so it applies to EVERY holder, not
+   just this week's new dispositions - the persistent ranking below needs
+   it for all 267 holders, most of which never appear in `claims` at all. */
+function isCorp(name){ var n=(name||'').toUpperCase();
+  return n.indexOf('URANIUM')>=0||n.indexOf('RESOURCES')>=0||n.indexOf('GEM OIL')>=0||
+         n.indexOf('CORP')>=0||n.indexOf('LTD')>=0||n.indexOf('INC')>=0; }
+var topCorpHolders=topHolders.filter(isCorp);
+/* 2026-09-07 (night): raised past the all-pairs 3-colour ceiling on Ezra's
+   explicit instruction, in three steps. (1) validated 8-hue family twice,
+   solid for ranks 1-8 + hatched for ranks 9-16. (2) dropped the hatch, 16
+   unique solid hues, evenly spaced. (3) final ask: EVERY named corporate
+   holder gets its own colour, not just the top 16 - "if they are similar in
+   color, thats fine. But make sure the largest holders are the most
+   distinct from each other." Evenly-spaced-by-rank hues would fail that
+   last requirement outright at this count (170 corporate holders on the
+   2026-09-07 baseline -> adjacent ranks only ~2.1° apart, so rank 1 and
+   rank 2 - probably the two single most important companies on the whole
+   map - would look almost identical). Fixed with the golden-angle hue
+   sequence instead: `hue(i) = (i * 137.50776) % 360`. This is a standard
+   low-discrepancy technique for exactly this shape of problem - each
+   successive hue lands in the largest remaining gap on the hue wheel, so
+   ANY prefix of the sequence (not just the full set) is already
+   well-spread. Concretely: hue(0)=0°, hue(1)=137.5°, hue(2)=275°,
+   hue(3)=52.5° - the first 4 ranks alone span the wheel almost evenly,
+   long before rank 170 ever fills in a gap between them. Later, closely-
+   spaced ranks are the small holders Ezra explicitly said he doesn't need
+   distinct - not the big ones. Not run through validate_palette.js, on
+   Ezra's explicit acceptance of that trade-off (see map-pipeline.md
+   "Holder colour rule"). Ranking is over CORPORATE holders only
+   (`topCorpHolders`) - a named individual never gets a slot here, however
+   much ground they hold, on Ezra's separate explicit instruction: an
+   individual staker isn't the entity whose activity matters until the
+   claim is registered to an actual company, same principle as the
+   new-claims layer below. */
+var GOLDEN_ANGLE=137.50776;
+function goldenColor(i){ return 'hsl('+((i*GOLDEN_ANGLE)%360).toFixed(1)+',68%,48%)'; }
+/* ---------- Northern Miner house colours (2026-09-08) ----------
+   Swatch values sampled straight off The Northern Miner's Athabasca Basin map
+   (November 2025 edition) so a company reads the same colour here as it does on
+   the printed sheet. Matching is on the FIRST company named in the holder string,
+   because that sheet distinguishes joint ventures with hatch patterns and this
+   map fills with a single colour - a JV therefore takes its lead partner's colour.
+   Four values are lifted off the printed original because that sheet is printed on
+   white and this page is dark: Purepoint (#221f21), Standard Uranium (#222e65),
+   Gem Oil (#53164b) and NexGen (#15478e) are at or near black against a #151515
+   ground. Each keeps its hue and is raised in lightness only, enough to read.
+   Every company not on this list keeps its golden-angle colour, unchanged. */
+var NMCOL_RULES=[
+  [/skyharbour/i,        '#016fa1'],
+  [/purepoint/i,         '#8c8790'],
+  [/canalaska/i,         '#ec2228'],
+  [/gem oil/i,           '#7d2270'],
+  [/isoenergy/i,         '#cc6629'],
+  [/argo gold/i,         '#fcbb14'],
+  [/standard uranium/i,  '#3a4da8'],
+  [/nexgen|nxe energy/i, '#2a63c0'],
+  [/f3 uranium/i,        '#86a93f'],
+  [/f4 uranium/i,        '#f05c2b'],
+  [/abasca/i,            '#b1d236'],
+  [/north shore/i,       '#e8c36a'],
+  [/denison/i,           '#fff100'],
+  [/orano/i,             '#8db5d2'],
+  [/cameco/i,            '#d6b4d5'],
+  [/rio tinto/i,         '#fefce9'],
+  [/mustang/i,           '#d0973b'],
+  [/terra (critical|clean)/i,'#f29f55']
+];
+function nmColor(h){
+  var lead=String(h||'').split(';')[0];
+  for(var i=0;i<NMCOL_RULES.length;i++) if(NMCOL_RULES[i][0].test(lead)) return NMCOL_RULES[i][1];
+  return null;
+}
+var HCOL={};
+topCorpHolders.forEach(function(h,i){ HCOL[h]=nmColor(h)||goldenColor(i); });
+/* Case-insensitive fallback index, added 2026-09-09 for the Alberta Tenure colour
+   match-up. Alberta's registry prints holder names in ALL CAPS ("ATHA ENERGY CORP.")
+   while Sask's registry keeps normal case ("Atha Energy Corp."), so the same real
+   company produced two different HCOL keys and the exact-match lookup used for
+   Alberta Tenure (below) silently fell through to grey for any company whose name
+   happened to differ only in case between the two registries - confirmed for Atha
+   Energy Corp specifically (checked every Alberta holder string against Sask's
+   topCorpHolders keys; Atha was the only case-only mismatch, everyone else on the
+   Alberta roster genuinely has no Sask corporate counterpart and stays grey correctly).
+   HCOL itself is left untouched (still exact-keyed, still what every other consumer -
+   Top 10 list, Claim Outlines, isolate-holder - reads) so this doesn't change any
+   existing Sask-side lookup; it's purely an additional fallback for cross-registry
+   name matching. */
+var HCOL_UP={};
+Object.keys(HCOL).forEach(function(h){ HCOL_UP[h.toUpperCase()]=HCOL[h]; });
+/* Isolate keeps the holder's OWN colour (Northern Miner house colour or its golden-angle
+   hue), 2026-09-08. It used to repaint the isolated holder SLOT[0] - the default blue -
+   which discarded the identity the rest of the map gives it and read close to the lakes
+   layer. SLOT[0] survives only as the fallback for a holder with no HCOL entry, i.e. a
+   named individual, who must still be visible when deliberately isolated. */
+/* Shared HCOL lookup, added 2026-09-09 for the Sask+Alberta Tenure merge - tries the
+   exact (Sask-cased) key first, then HCOL_UP's case-insensitive fallback, so an
+   Alberta claim (all-caps holder string) resolves to the same colour as the Sask
+   listing for the same company. */
+function hcolFor(h){ return HCOL[h]||HCOL_UP[h.toUpperCase()]||null; }
+function holderColor(o){ var h=shortHolder(o);
+  if(F.holder) return (h===F.holder||h.toUpperCase()===F.holder.toUpperCase())?(hcolFor(h)||SLOT[0]):OTHER;
+  return hcolFor(h)||OTHER; }
+
+/* ---------- new-claim colours: every CORPORATE staker this week gets its own
+   colour from the 8-hue family (not just the top 3) - named individuals stay
+   grey always, on Ezra's explicit instruction (2026-09-07): they're agents/
+   stakers, not the entity whose activity matters here, and lumping them in
+   with the ranking buried the actual companies. `corp` already comes through
+   the data pipeline (basin_layers.py flags URANIUM/RESOURCES/CORP/LTD/INC/
+   GEM OIL in the holder string) so this needs no new fetch, just a filter.
+   Ranked over B.claims (this week's new dispositions) only, corp entries
+   only. Own legend (#newclaimkey). This is a deliberate, informed exception
+   to the map's normal 3-colour ceiling for this one narrow, small,
+   temporary layer - see "New-claim colours" in map-pipeline.md for exactly
+   what accessibility trade-off that accepts once a week has more than 3
+   corporate stakers, and why it doesn't extend to the persistent tenure
+   fill. When Spotlight is set, newClaimColor() defers to it instead (same
+   3 companies/colours as the existing-tenure layer), so a spotlit company
+   still reads consistently across old + new claims. ---------- */
+var newCorpCount={};
+CLAIMS_F.forEach(function(c){ if(!c.corp)return; var o=shortHolder(c.o)||'-'; newCorpCount[o]=(newCorpCount[o]||0)+1; });
+var newTopHolders=Object.keys(newCorpCount).sort(function(a,b){return newCorpCount[b]-newCorpCount[a];});
+var NEWHCOL={}; newTopHolders.slice(0,8).forEach(function(h,i){ NEWHCOL[h]=FAM8[i]; });
+var newCount=newCorpCount; // kept for the legend/count lookups below
+function newClaimColor(o,corp){ var h=shortHolder(o);
+  if(FAVN) return F.fav[h]?(HCOL[h]||NEWHCOL[h]||SLOT[0]):FAVDIM;
+  if(F.holder) return h===F.holder?(HCOL[h]||NEWHCOL[h]||SLOT[0]):OTHER;
+  if(!corp) return OTHER;
+  /* Coloured from HCOL - the same per-holder map Sask Tenure/Claim Outlines uses
+     (Northern Miner house colour or golden-angle hue) - not NEWHCOL, 2026-09-09.
+     NEWHCOL is only this week's top-8-by-new-claim-count palette (FAM8, reused
+     every week for whichever 8 companies happen to lead), so the same company
+     could get a different colour here than on the persistent tenure fill right
+     next to it - exactly the mismatch Ezra reported ("New Claim toggle isn't
+     colour-coding the same as Sask Tenure"). Same root cause and same fix as the
+     Lapsing-Within-7-Days layer's 2026-09-08 fix (see that block above): key off
+     HCOL so a company reads as one consistent colour across every layer. NEWHCOL
+     survives as a fallback only, for the rare corporate staker (should not
+     happen now that HCOL covers every corporate holder in TENURE_F, which this
+     week's new claims are already part of) with no HCOL entry at all. */
+  return HCOL[h]||NEWHCOL[h]||OTHER; }
+
+/* ---------- project everything ---------- */
+var P={tenure:[],claims:[],deps:[],foots:[],conds:[],heat:[],geochem:[],mines:[],places:[],hw:[],basin:[],news:[],lakes:[],lapreg:[],ab:[],restricted:[],smdi:[]};
+var minx=1e18,maxx=-1e18,miny=1e18,maxy=-1e18;
+function ext(p){if(p[0]<minx)minx=p[0];if(p[0]>maxx)maxx=p[0];if(p[1]<miny)miny=p[1];if(p[1]>maxy)maxy=p[1];}
+function projRing(r,track){var o=[],bx0=1e18,by0=1e18,bx1=-1e18,by1=-1e18;
+  for(var i=0;i<r.length;i++){var p=PROJ(r[i][0],r[i][1]); if(track)ext(p); o.push(p);
+    if(p[0]<bx0)bx0=p[0]; if(p[0]>bx1)bx1=p[0]; if(p[1]<by0)by0=p[1]; if(p[1]>by1)by1=p[1];}
+  return {r:o,b:[bx0,by0,bx1,by1]};}
+/* Deposit footprints are true-to-scale orebody outlines - often only a few
+   hundred metres across, effectively invisible at whole-basin zoom. Ezra
+   asked for a buffer around them (2026-09-07) so they read as a small blob
+   rather than vanishing. Real polygon offsetting (proper edge-normal buffer)
+   is overkill for this - these are small, roughly-convex shapes, so this
+   pushes every vertex outward from the ring's own centroid by a fixed
+   distance in km (PROJ's units are km - see PROJ above). Good enough to make
+   a sliver visible without needing a geometry library. */
+function bufferRing(r,bufKm){ if(!r.length)return r;
+  var cx=0,cy=0,i; for(i=0;i<r.length;i++){cx+=r[i][0];cy+=r[i][1];}
+  cx/=r.length; cy/=r.length;
+  return r.map(function(p){ var dx=p[0]-cx,dy=p[1]-cy,dd=Math.sqrt(dx*dx+dy*dy);
+    if(dd<1e-9)return [p[0],p[1]];
+    var f=(dd+bufKm)/dd; return [cx+dx*f,cy+dy*f]; }); }
+var FOOT_BUFFER_KM=0; /* reverted to true-to-scale per Ezra's request - buffer was too large */
+
+/* Basin outline is the one layer exempt from the 6250N cut below - it's
+   Ezra's supplied survey shapefile, never filtered or re-derived (see
+   map-pipeline.md "Basin outline is fixed"). */
+((B.basin&&B.basin.rings)||[]).forEach(function(r){ P.basin.push(projRing(r,true).r); });
+var TENIDS={}; TENURE_F.forEach(function(t){ if(t.d)TENIDS[t.d]=true; });
+var NEWIDS={}; CLAIMS_F.forEach(function(c){ if(c.d)NEWIDS[c.d]=true; });
+var NEWCORP={}; CLAIMS_F.forEach(function(c){ if(c.d)NEWCORP[c.d]=!!c.corp; });
+var TODAY=new Date((B.generated||'')+'T00:00:00Z'); if(isNaN(TODAY))TODAY=new Date();
+var LAPSE_SOON_MS=7*86400000;
+function daysUntil(iso){ if(!iso)return null; var d=new Date(iso+'T00:00:00Z');
+  return isNaN(d)?null:Math.round((d-TODAY)/86400000); }
+TENURE_F.forEach(function(t){ var pr=projRing(t.r,true);
+  var dLeft=daysUntil(t.x);
+  var lapseSoon=(dLeft!==null&&dLeft>=0&&dLeft<=7);
+  var dep=lapseSoon?depositFor(t.e,t.x,polyAreaHa(t.r)):null;
+  P.tenure.push({r:pr.r,b:pr.b,d:t.d,o:t.o,e:t.e,st:t.st,x:t.x,
+    isNew:!!(t.d&&NEWIDS[t.d]), corp:!!(t.d&&NEWCORP[t.d]),
+    lapseSoon:lapseSoon, dep:dep}); });
+CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
+  P.claims.push({p:p,ll:[c.x,c.y],d:c.d,o:c.o,e:c.e,corp:!!c.corp,orphan:!(c.d&&TENIDS[c.d])}); });
+(B.lakes||[]).forEach(function(l){ if(!ringInBoxOK(l.r))return; P.lakes.push({r:projRing(l.r,false).r,n:l.n}); });
+(B.deposits||[]).forEach(function(d){ if(!northOK(d.x,d.y))return; var p=PROJ(d.x,d.y); ext(p);
+  P.deps.push({p:p,ll:[d.x,d.y],n:d.n,s:d.s,prod:d.p,id:d.id}); });
+/* SMDI uranium occurrences (added 2026-09-09) - the full Mineral Deposits Index
+   uranium set (occurrences, prospects, mineral locations - not just named deposits
+   with defined resources like B.deposits above), with a best-effort grade scraped
+   from each record's own detail-page narrative text by basin_layers.py. No structured
+   grade field exists on this service; pct/ppm/assay are absent (undefined) on any
+   record the scrape found no parseable number for. Empty until basin_layers.py has
+   been run with the SMDI section - see claude/map-pipeline.md. */
+(B.smdi||[]).forEach(function(d){ if(!northOK(d.x,d.y))return; var p=PROJ(d.x,d.y); ext(p);
+  var pct=d.pct,ppm=d.ppm;
+  /* A parsed grade above 100% U3O8 is chemically impossible (100% is the ceiling) - it's
+     the narrative-text regex catching a tonnage/multiplier/other number, not a real grade.
+     Treat it as unparsed rather than let a handful of these blow out the "Min grade"
+     slider's whole scale (2026-09-09, Ezra: "SMDI Grade slider doesn't work"). */
+  if(pct!=null&&pct>100){pct=null;ppm=null;}
+  P.smdi.push({p:p,ll:[d.x,d.y],n:d.n,s:d.s,id:d.id,pct:pct,ppm:ppm,assay:d.assay}); });
+(B.mines||[]).forEach(function(m){ if(!northOK(m.x,m.y))return; var p=PROJ(m.x,m.y); ext(p);
+  P.mines.push({p:p,ll:[m.x,m.y],n:m.n,u:m.u,ml:m.ml,st:m.st}); });
+(B.places||[]).forEach(function(s){ if(!inBoxOK(s.x,s.y))return; var p=PROJ(s.x,s.y); ext(p);
+  P.places.push({p:p,ll:[s.x,s.y],n:s.n,k:s.k}); });
+/* Manual additions (2026-09-07, Ezra's request) - not in the underlying
+   Places feature service pull, or filtered out of it; added here directly
+   since they're static reference points, not something worth a
+   basin_layers.py round-trip for three towns. Labelled 'Town' so they
+   always show a name label regardless of zoom (see the place-label draw
+   code below). Ezra asked for Pinehouse on the map (2026-09-08). It sits about
+   100 km south of the 6250N data cut, so it is pushed to P.places regardless of
+   the cut - but ext() is skipped for anything south of the line, so the default
+   framing still stops at 6250N as asked and the map does not stretch south to
+   reach it. Pan south of the basin to see it. Fond du Lac added 2026-09-08 -
+   coordinates from its Wikipedia geo entry (59.3498, -107.0138), not yet
+   confirmed by Ezra's own UTM per his stated preference (see "Coordinates:
+   UTM only" in map-pipeline.md); flag it if it turns out wrong the way Points
+   North Landing's first guess did. Well north of the 6250N cut, so it renders
+   in the default view like Points North Landing and La Loche. */
+[["Points North Landing",-104.0817,58.2703],["Pinehouse",-106.5833,55.5333],
+ ["La Loche",-109.4425,56.4881],["Fond du Lac",-107.0138,59.3498]].forEach(function(t){
+  if(!inBoxOK(t[1],t[2]))return;
+  var p=PROJ(t[1],t[2]); ext(p);
+  P.places.push({p:p,ll:[t[1],t[2]],n:t[0],k:'Town'}); });
+(B.highways||[]).forEach(function(h){ if(!ringInBoxOK(h.p))return; P.hw.push({r:projRing(h.p,true).r,n:h.n}); });
+(B.footprints||[]).forEach(function(f){ if(!ringNorthOK(f.r))return;
+  P.foots.push({r:bufferRing(projRing(f.r,true).r,FOOT_BUFFER_KM),a:f.a}); });
+(B.conductors||[]).forEach(function(c){ if(!ringNorthOK(c.p))return; var pr=projRing(c.p,true);
+  P.conds.push({r:pr.r,b:pr.b,y:c.y,t:c.t,sv:c.sv,L:c.L}); });
+/* Recently-lapsed claims (Layer 3), added 2026-09-08. basin_layers.py exports every
+   currently-lapsed disposition each run, each tagged "new":1 if it wasn't in the PREVIOUS
+   run's snapshot (diffed on DISPOSIT_1, the stable claim number - Layer 3's OBJECTID is
+   not sequential, see claim-monitor-state.md "Layer 3 gotchas"). Only isNew ones are drawn
+   on the map - the point is "what changed", not the full 368-record lapsed register. Same
+   SGO exclusion and 6250N cut as every other layer. The very first run after this feature
+   shipped has nothing to diff against, so every entry comes through with isNew false and
+   this layer will show zero until the next Windows export. */
+(B.lapsed||[]).forEach(function(L){ if(isSGO(L.o))return; if(!ringNorthOK(L.r))return;
+  var pr=projRing(L.r,true);
+  P.lapreg.push({r:pr.r,b:pr.b,d:L.d,o:L.o||'',st:L.st||'',isNew:!!L.new}); });
+/* Alberta metallic & industrial minerals agreements (added 2026-09-08). Alberta holds
+   basin-extension tenure on its own registry, not MARS/GeoAtlas, so this is a separate
+   key rather than more rows in `tenure`. No registration date exists on that layer, so
+   `new` comes from a set diff on AgreementNumber done in basin_layers.py, not a watermark. */
+(B.ab_tenure||[]).forEach(function(A){ if(!ringNorthOK(A.r))return;
+  var pr=projRing(A.r,false);
+  P.ab.push({r:pr.r,b:pr.b,d:A.d,o:A.o||'',n:A.n||'',ty:A.t||'',x:A.x||'',isNew:!!A.new}); });
+/* Restricted lands (added 2026-09-09) - MARS's "unavailable for staking" categories.
+   Four of MARS's six (Parks, Indian reserves, land claim selections, urban
+   municipalities) have their own public ArcGIS layers and are pulled by
+   basin_layers.py section 12; Crown reserves and manual restrictions have no known
+   public layer and are not included - see claude/map-pipeline.md. Empty (P.restricted
+   stays []) until Ezra reruns basin_layers.py with the new section - the layer bar
+   shows 0 and the toggle is inert until then, same as any other not-yet-populated
+   layer (e.g. Geochem Heat before its first run). Not extent-tracked (projRing's
+   second arg is false) - like Alberta Tenure, this shouldn't stretch the default
+   auto-fit view. */
+(B.restricted||[]).forEach(function(RL){ if(!ringNorthOK(RL.r))return;
+  var pr=projRing(RL.r,false);
+  P.restricted.push({r:pr.r,b:pr.b,n:RL.n||'',ty:RL.ty||''}); });
+(B.boulder_grid||[]).forEach(function(g){ if(!northOK(g.x,g.y))return; var p=PROJ(g.x,g.y); ext(p);
+  P.heat.push({p:p,n:g.n,mx:g.mx,av:g.av}); });
+/* Uranium geochemistry heat (lake-sediment + soil/till U, ppm) - added 2026-09-08, shape
+   mirrors boulder_grid (n samples, mx/av U ppm per cell). Empty until basin_layers.py pulls
+   the SK lake-sediment and till-geochemistry surveys - see claude/map-pipeline.md and
+   claude/open-items.md. Reading an absent bundle key is harmless (defaults to []). */
+(B.geochem_grid||[]).forEach(function(g){ if(!northOK(g.x,g.y))return; var p=PROJ(g.x,g.y); ext(p);
+  P.geochem.push({p:p,n:g.n,mx:g.mx,av:g.av,med:g.med}); });
+/* ---- News-release waypoints (grade releases since 2026-09-07; every other release
+   type added 2026-09-08) ----------------------------------------------------------
+   Three fields drive the encoding, all optional so entries written before this change
+   still render exactly as they did:
+     ty  release type      -> the GLYPH        (grade star, geophysics diamond, drill
+                                                triangle, deal square, resource hexagon)
+     anc how the position was derived -> the UNCERTAINTY RING
+     unc radius of that uncertainty in km (defaults per anc, see ANCUNC)
+   Grade stars keep their existing bright green. Every other type is filled in its
+   company's own HCOL colour so a waypoint reads as the same company as the ground
+   underneath it. See claude/map-pipeline.md "News-release waypoints" for the curation
+   rules and the anchor hierarchy the brief follows. */
+var NEWSTYPE={
+  grade:{lab:'Grade result'},
+  geo:  {lab:'Geophysics / survey'},
+  drill:{lab:'Drill program / permit'},
+  deal: {lab:'Property deal'},
+  mre:  {lab:'Resource estimate / study'}};
+var ANCLAB={collar:'surveyed collar',deposit:'offset from a mapped deposit',
+  claims:'centroid of the holder\'s claim block',figure:'read off a release figure'};
+/* Default uncertainty when a waypoint doesn't state its own. A surveyed collar is exact;
+   everything else gets a ring big enough to stop the star being read as a position it
+   isn't. */
+var ANCUNC={collar:0,deposit:1.5,claims:6,figure:2};
+/* Every non-grade waypoint is one light jasper blue, on Ezra's instruction 2026-09-08 -
+   NOT the company's own holder colour. A first pass filled these from HCOL so a waypoint
+   matched the ground under it; he asked for a single colour instead. Keep it that way: the
+   waypoint layer reads as one thing sitting on top of the map, and the company is named on
+   hover. Grade stars stay bright green. */
+var NEWSXCOL='#ffe600';
+(B.news||[]).forEach(function(w){ if(!northOK(w.x,w.y))return; var p=PROJ(w.x,w.y); ext(p);
+  var ty=w.ty||w.t||'grade', an=w.anc||'deposit';
+  P.news.push({p:p,ll:[w.x,w.y],n:w.n,co:w.co,g:w.g,when:w.when,url:w.url,note:w.note,
+    ty:ty, anc:an, unc:(w.unc==null?(ANCUNC[an]||0):+w.unc),
+    col:(ty==='grade'?'#00e64d':NEWSXCOL)}); });
+var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
+var NEWSX=P.news.filter(function(w){return w.ty!=='grade';});
+/* One star for every waypoint, whatever its type - Ezra 2026-09-08. A per-type glyph set
+   (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
+   by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
+   by shape. Don't reintroduce shape encoding without asking. */
+function newsGlyph(x,y,ty){var r=7.14,r2=r*.42;ctx.beginPath();
+  for(var i=0;i<10;i++){var rad=i%2===0?r:r2,a=-Math.PI/2+i*Math.PI/5;
+    var px=x+rad*Math.cos(a),py=y+rad*Math.sin(a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+  ctx.closePath();}
+var HMAXN=P.heat.reduce(function(m,h){return Math.max(m,h.n);},1);
+var HMAXC=P.heat.reduce(function(m,h){return Math.max(m,h.mx);},1);
+var GMAXN=P.geochem.reduce(function(m,h){return Math.max(m,h.n);},1);
+var GMAXC=P.geochem.reduce(function(m,h){return Math.max(m,h.mx);},1);
+var SMDI_MAXPPM=P.smdi.reduce(function(m,d){return Math.max(m,d.ppm||0);},1);
+var hasData=P.tenure.length||P.claims.length||P.deps.length||P.conds.length||P.heat.length||P.news.length;
+if(!hasData){minx=-400;maxx=400;miny=-400;maxy=400;}
+
+/* Order and capitalization set by Ezra 2026-09-08. Major lakes, Basin outline, Highways and
+   Towns & settlements were dropped from this list the same day - they're permanent basemap
+   context now (see the always-on block below ON's definition), not viewer-toggleable. */
+var LAYERS=[
+ {k:'claim', label:'New Claims',    color:'#ffffff', get:function(){return P.claims.length;}},
+ {k:'lapse', label:'Lapsing Within 7 Days',color:'#ff1493',get:function(){return P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;}).length;}},
+ {k:'news',  label:'Grade Releases',  color:'#00e64d', get:function(){return NEWSG.length;}},
+ {k:'newsx', label:'Other News',      color:'#ffe600', get:function(){return NEWSX.length;}},
+ {k:'tenure',label:'Tenure (SK+AB)', color:SLOT[0],  get:function(){return P.tenure.length+P.ab.length;}},
+ {k:'lapall',label:'Lapsed Claims', color:'#f5921e', get:function(){return P.lapreg.length;}},
+ {k:'dep',   label:'Uranium Deposits',    color:'#ff0000', get:function(){return P.deps.length;}},
+ {k:'foot',  label:'Deposit Footprints',color:'#ff0000',get:function(){return P.foots.length;}},
+ {k:'mine',  label:'Mines & Mills', color:'#8b5cf6', get:function(){return P.mines.length;}},
+ {k:'cond',  label:'EM Conductors', color:'#bebebe', get:function(){return P.conds.length;}},
+ {k:'restricted',label:'Restricted Lands',color:'#ffffff', get:function(){return P.restricted.length;}},
+ {k:'smdi',  label:'SMDI Grade', color:'#f97316', get:function(){return P.smdi.length;}},
+ {k:'heat',  label:'Boulder Heat',  color:'#e6b40a', get:function(){return B.boulder_total||0;}},
+ {k:'geochem',label:'Lake & Soil Heat', color:'#2dd4bf', get:function(){return P.geochem.length;}}
+];
+/* Heat-style layers (density/interpolated surfaces rather than discrete features)
+   split into their own box below the main toggles, 2026-09-09 night, per Ezra's
+   request. HEATKEYS controls both the split and the box's internal order. */
+var HEATKEYS=['smdi','heat','geochem'];
+var ON={}; LAYERS.forEach(function(l){ ON[l.k]=true; });
+/* Claim outlines off by default, 2026-09-08 - ~7,500 polygons drawn on every load made the map busy before a viewer had picked a holder or a favourite; everything else still starts on. Toggle it back on any time from the layer bar. */
+ON.tenure=false;
+
+/* Boulder Heat and Geochem Heat off by default, 2026-09-08 - two dense heat layers drawn on every load competed with the point/line layers for attention; both toggle on any time from the layer bar. */
+ON.heat=false;
+ON.geochem=false;
+/* Restricted Lands off by default, added 2026-09-09 - a background boundary layer
+   (parks, Indian reserves, land claim selections, urban municipalities) that a viewer
+   toggles on when checking whether ground is available to stake, same reasoning as
+   Sask/Alberta Tenure. Toggle it on any time from the layer bar. */
+ON.restricted=false;
+/* Lapsed Claims off by default, added 2026-09-09 - the full lapsed-disposition register
+   (hundreds of records), distinct from Recently Lapsed (which only shows new-since-
+   last-export deltas). Ezra asked for this as a separate toggle after finding a claim
+   MARS still marks lapsed (MC00018892) invisible on the map because it lapsed before
+   the Recently Lapsed baseline snapshot. Toggle it on any time from the layer bar. */
+ON.lapall=false;
+/* SMDI Occurrences off by default, added 2026-09-09 - up to ~1,550 points once
+   basin_layers.py's scrape has run, denser than any other point layer. Toggle it on
+   any time from the layer bar. */
+ON.smdi=false;
+/* Mines & Mills off by default, added 2026-09-09 - a background reference layer Ezra
+   toggles on when he wants it, same reasoning as the other off-by-default layers above.
+   Toggle it on any time from the layer bar. */
+ON.mine=false;
+/* EM Conductors off by default, added 2026-09-09 - ~28,462 polylines, denser than
+   any other line layer and drawn on every load before a viewer asked for it. Toggle
+   it on any time from the layer bar. */
+ON.cond=false;
+/* Major lakes, basin outline, highways and towns/settlements are permanent background context,
+   2026-09-08 - no longer viewer-toggleable (see LAYERS above), always drawn. */
+ON.lake=true; ON.basin=true; ON.hw=true; ON.place=true;
+
+/* ---------- view ---------- */
+var view={s:1,tx:0,ty:0},W=0,H=0,DPR=1,home=null;
+var HOMEBOX=[-343.74,-384.28,259.80,72.69]; /* [minx,miny,maxx,maxy], fixed reset-view extent - Ezra's explicit ask 2026-09-09: the map's "Reset view" should always frame the same working bounding box basin_layers.py uses to filter data (UTM13N E100,000-700,000 / N6,250,000-6,700,000), not whatever the current bundle's actual data extent happens to be. Projected once offline via PROJ() at build time, not recomputed at runtime. */
+function fit(){var pad=26,bw=Math.max(1,HOMEBOX[2]-HOMEBOX[0]),bh=Math.max(1,HOMEBOX[3]-HOMEBOX[1]);
+  view.s=Math.min((W-pad*2)/bw,(H-pad*2)/bh);
+  view.tx=W/2-((HOMEBOX[0]+HOMEBOX[2])/2)*view.s; view.ty=H/2-((HOMEBOX[1]+HOMEBOX[3])/2)*view.s;
+  home={s:view.s,tx:view.tx,ty:view.ty};}
+function sx(p){return p[0]*view.s+view.tx;} function sy(p){return p[1]*view.s+view.ty;}
+function visb(b){var x0=b[0]*view.s+view.tx,x1=b[2]*view.s+view.tx,
+  y0=b[1]*view.s+view.ty,y1=b[3]*view.s+view.ty;
+  return !(x1<-30||x0>W+30||y1<-30||y0>H+30);}
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);
+  W=cv.clientWidth;H=cv.clientHeight;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); if(!home)fit(); draw();}
+
+var F={holder:'',status:'',cyear:'',ctype:'',cps:0,uppm:0,newOnly:false,fav:{}};
+/* ---------- Favourites (replaced the three Spotlight pickers, 2026-09-08) ----
+   Ezra asked for a searchable checkbox list that can put ANY number of operators
+   on the map at once, rather than three dropdown slots. Each favourite keeps the
+   colour it already has everywhere else (HCOL, the per-holder golden-angle hue),
+   so a company looks the same whether or not it is favourited - only the
+   BACKGROUND changes: every non-favourite drops to FAVDIM so the selected
+   companies carry the eye. That is what lets this go past three where Spotlight
+   could not: the map is no longer asking a viewer to tell N categorical hues
+   apart, only favourite from not-favourite, with hover still naming any
+   individual claim exactly as before.
+   FAVN is a cached count so the draw loop never walks Object.keys per claim. */
+var FAVDIM='#2b2f2d', FAVN=0;
+/* Case-insensitive favourites index, added 2026-09-09 for the Sask+Alberta Tenure
+   merge - Alberta's registry prints holder names in all caps while the Favourites
+   list is built from Sask's mixed-case holders, so F.fav's keys alone miss an
+   Alberta claim held by the same company. FAV_UP mirrors HCOL_UP's approach. */
+var FAV_UP={};
+function syncFav(){ FAVN=Object.keys(F.fav).filter(function(k){return F.fav[k];}).length;
+  FAV_UP={};
+  Object.keys(F.fav).forEach(function(k){ if(F.fav[k]) FAV_UP[k.toUpperCase()]=true; }); }
+function favKeys(){ return Object.keys(F.fav).filter(function(k){return F.fav[k];}); }
+/* Grade-release waypoints carry a company DISPLAY name ("Paladin Energy"), not a
+   registry holder string ("PALADIN ENERGY LTD."), so they match on first
+   significant word rather than exactly - and a non-match only FADES the star, it
+   never hides one. A missed match is cosmetic, not a lost waypoint. */
+function favMatchesCo(co){ if(!FAVN)return true;
+  var c=(co||'').toUpperCase().replace(/[^A-Z ]/g,' ');
+  return favKeys().some(function(k){
+    var w=String(k).toUpperCase().replace(/[^A-Z ]/g,' ').trim().split(/\s+/)[0];
+    return w && w.length>3 && c.indexOf(w)>=0; }); }
+function activeColor(o){ var h=shortHolder(o);
+  if(FAVN) return (F.fav[h]||FAV_UP[h.toUpperCase()])?(hcolFor(h)||SLOT[0]):FAVDIM;
+  return holderColor(o); }
+function tenVis(t){ if(F.holder&&shortHolder(t.o)!==F.holder) return false;
+  if(F.newOnly&&!(t.e&&t.e>='2026-09-01')) return false; return true; }
+function condVis(c){ if(F.cyear&&String(c.y)!==F.cyear)return false;
+  if(F.ctype&&c.t!==F.ctype)return false; return true; }
+
+/* ---------- draw ---------- */
+function poly(r,close){ctx.moveTo(sx(r[0]),sy(r[0]));
+  for(var i=1;i<r.length;i++)ctx.lineTo(sx(r[i]),sy(r[i])); if(close)ctx.closePath();}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  var line=tok('--line','#E8E6DE'),muted=tok('--muted','#6B6A66'),surf=tok('--surface','#fff');
+
+  if(ON.lake&&P.lakes.length){ctx.save();
+    ctx.fillStyle='rgba(61,111,138,.38)';ctx.strokeStyle='rgba(61,111,138,.6)';ctx.lineWidth=.7;
+    P.lakes.forEach(function(l){ctx.beginPath();poly(l.r,true);ctx.fill();ctx.stroke();});
+    ctx.restore();}
+
+  if(ON.basin&&P.basin.length){ctx.save();
+    ctx.fillStyle=tok('--basinfill','rgba(217,119,87,.14)');
+    ctx.strokeStyle=tok('--basinline','rgba(184,92,62,.85)');ctx.lineWidth=1.3;
+    P.basin.forEach(function(r){ctx.beginPath();poly(r,true);ctx.fill();ctx.stroke();});
+    ctx.restore();}
+
+  ctx.save();ctx.strokeStyle=line;ctx.globalAlpha=.45;ctx.lineWidth=1;
+  ctx.fillStyle=muted;ctx.font='9px "IBM Plex Mono",monospace';
+  /* UTM Zone 13N tick grid, replacing the lat/long graticule (2026-09-07
+     night). A line of constant Easting or Northing is not straight in this
+     Lambert projection, so each tick is traced as a short curve: sample the
+     other coordinate across the sampling window (LONR/LATR below) and
+     bisect (`bisect1d`, using UTM13()) for the lon (or lat) that hits the
+     target E (or N) at each sample, same shape as the old degree-graticule
+     loop but solved numerically instead of picked directly. 50km spacing -
+     the standard geoscience-map UTM grid interval at this scale. */
+  var LONR=[-114,-100], LATR=[55.3,61.3], GRID=50000;
+  var corners=[[LONR[0],LATR[0]],[LONR[0],LATR[1]],[LONR[1],LATR[0]],[LONR[1],LATR[1]]].map(function(c){return UTM13(c[0],c[1]);});
+  var Emin=Math.min.apply(null,corners.map(function(c){return c[0];})), Emax=Math.max.apply(null,corners.map(function(c){return c[0];}));
+  var Nmin=Math.min.apply(null,corners.map(function(c){return c[1];})), Nmax=Math.max.apply(null,corners.map(function(c){return c[1];}));
+  var E0=Math.floor(Emin/GRID)*GRID, N0=Math.floor(Nmin/GRID)*GRID;
+  for(var Et=E0;Et<=Emax;Et+=GRID){ ctx.beginPath(); var started=false, labelPt=null;
+    for(var laS=LATR[0];laS<=LATR[1];laS+=0.3){
+      var lonHit=bisect1d(function(lo){return UTM13(lo,laS)[0];},LONR[0],LONR[1],Et);
+      if(lonHit===null)continue;
+      var pp=PROJ(lonHit,laS); if(!labelPt)labelPt=pp;
+      started?ctx.lineTo(sx(pp),sy(pp)):ctx.moveTo(sx(pp),sy(pp)); started=true; }
+    if(started){ ctx.stroke();
+      ctx.globalAlpha=.8;ctx.fillText(Math.round(Et/1000)+'E',sx(labelPt)-11,sy(labelPt)+11);ctx.globalAlpha=.45; } }
+  for(var Nt=N0;Nt<=Nmax;Nt+=GRID){ ctx.beginPath(); var started2=false, labelPt2=null;
+    for(var loS=LONR[0];loS<=LONR[1];loS+=0.3){
+      var latHit=bisect1d(function(la){return UTM13(loS,la)[1];},LATR[0],LATR[1],Nt);
+      if(latHit===null)continue;
+      var pp2=PROJ(loS,latHit); if(!labelPt2)labelPt2=pp2;
+      started2?ctx.lineTo(sx(pp2),sy(pp2)):ctx.moveTo(sx(pp2),sy(pp2)); started2=true; }
+    if(started2){ ctx.stroke();
+      ctx.globalAlpha=.8;ctx.fillText(Math.round(Nt/1000)+'N',sx(labelPt2),sy(labelPt2)-3);ctx.globalAlpha=.45; } }
+  ctx.restore();
+
+  if(ON.heat&&P.heat.length){ctx.save();ctx.globalCompositeOperation='multiply';
+    var cell=Math.max(5,0.04*view.s*4.2);
+    P.heat.forEach(function(h){ if(h.mx<F.cps)return;
+      var x=sx(h.p),y=sy(h.p); if(x<-60||x>W+60||y<-60||y>H+60)return;
+      var t=Math.min(1,Math.log(1+h.n)/Math.log(1+HMAXN));
+      var i=Math.min(1,t*.55+Math.min(1,h.mx/(HMAXC||1))*.45);
+      var g=ctx.createRadialGradient(x,y,0,x,y,cell);
+      /* opacity raised once already (2026-09-07, was too faint); raised again
+         2026-09-07 (night) - "less transparent by another 50%": halve the
+         remaining transparency (1-alpha) rather than just scaling alpha up,
+         so the already-bright top end doesn't blow past 1 while the faint
+         low end still gets meaningfully bolder. */
+      var hAlpha=Math.min(1,.15+.93*i); hAlpha=1-(1-hAlpha)*.5;
+      g.addColorStop(0,'rgba(230,180,10,'+hAlpha.toFixed(3)+')');
+      g.addColorStop(1,'rgba(230,180,10,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,cell,0,6.2832);ctx.fill();});
+    ctx.restore();}
+
+  /* Uranium geochemistry heat (lake sediment + soil/till U) - same rendering as boulder heat
+     above, teal instead of amber so the two are never confused where they overlap. Empty
+     until basin_layers.py supplies geochem_grid - see claude/map-pipeline.md. */
+  if(ON.geochem&&P.geochem.length){ctx.save();ctx.globalCompositeOperation='multiply';
+    var gcell=Math.max(5,0.04*view.s*4.2);
+    P.geochem.forEach(function(h){ if(h.mx<F.uppm)return;
+      var x=sx(h.p),y=sy(h.p); if(x<-60||x>W+60||y<-60||y>H+60)return;
+      var t=Math.min(1,Math.log(1+h.n)/Math.log(1+GMAXN));
+      var i=Math.min(1,t*.55+Math.min(1,h.mx/(GMAXC||1))*.45);
+      var g=ctx.createRadialGradient(x,y,0,x,y,gcell);
+      var hAlpha=Math.min(1,.15+.93*i); hAlpha=1-(1-hAlpha)*.5;
+      g.addColorStop(0,'rgba(45,212,191,'+hAlpha.toFixed(3)+')');
+      g.addColorStop(1,'rgba(45,212,191,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,gcell,0,6.2832);ctx.fill();});
+    ctx.restore();}
+
+  if(ON.cond&&P.conds.length){ctx.save();
+    ctx.lineWidth=Math.max(.5,Math.min(1.6,view.s*.012));
+    ctx.strokeStyle='rgba(190,190,190,.7)';ctx.beginPath();
+    P.conds.forEach(function(c){ if(!condVis(c)||!visb(c.b))return; poly(c.r,false); });
+    ctx.stroke();ctx.restore();}
+
+  if(ON.tenure&&P.tenure.length){ctx.save();
+    /* Isolate-holder mode (F.holder set) gets its own bolder treatment - the
+       default SLOT[0] blue at the normal .30 fill / 1.6-3.4px stroke read too
+       close to the lakes layer's blue fill (Ezra's report, 2026-09-08). Bumped
+       to a thicker stroke (2.2-4.8px) and a 30%-more-opaque fill (.30 -> .39)
+       whenever a holder is actually isolated. */
+    var isoMode=!!F.holder;
+    ctx.lineWidth=isoMode?Math.max(2.2,Math.min(4.8,view.s*.034)):Math.max(.35,Math.min(1.1,view.s*.010));
+    var byCol={};
+    P.tenure.forEach(function(t){ if(!tenVis(t)||!visb(t.b))return;
+      var c=activeColor(t.o); (byCol[c]=byCol[c]||[]).push(t); });
+    Object.keys(byCol).forEach(function(col){
+      ctx.beginPath(); byCol[col].forEach(function(t){ poly(t.r,true); });
+      ctx.fillStyle=col; ctx.globalAlpha=col===OTHER?.16:(isoMode?.39:.30); ctx.fill();
+      ctx.globalAlpha=col===OTHER?.5:.95; ctx.strokeStyle=col; ctx.stroke();
+    });
+    ctx.restore();}
+
+  if(ON.foot&&P.foots.length){ctx.save();ctx.lineWidth=1.3;
+    ctx.strokeStyle='rgba(255,0,0,1)';ctx.fillStyle='rgba(255,0,0,.28)';
+    P.foots.forEach(function(f){ctx.beginPath();poly(f.r,true);ctx.fill();ctx.stroke();});
+    ctx.restore();}
+
+  if(ON.restricted&&P.restricted.length){ctx.save();
+    P.restricted.forEach(function(r){ if(!visb(r.b))return;
+      ctx.beginPath();poly(r.r,true);
+      ctx.fillStyle='rgba(255,255,255,.85)';ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.85)';
+      ctx.lineWidth=Math.max(1,Math.min(2.4,view.s*.016));ctx.stroke();});
+    ctx.restore();}
+
+  if(ON.hw&&P.hw.length){ctx.save();ctx.strokeStyle=tok('--hwline','rgba(255,255,255,.9)');
+    ctx.lineWidth=Math.max(1,Math.min(2.6,view.s*.02));ctx.lineJoin='round';
+    ctx.setLineDash([Math.max(4,view.s*.05),Math.max(3,view.s*.035)]);ctx.beginPath();
+    P.hw.forEach(function(h){poly(h.r,false);});ctx.stroke();ctx.setLineDash([]);ctx.restore();}
+
+  if(ON.lapse){var lapseTen=P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;});
+    if(lapseTen.length){ctx.save();
+      lapseTen.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+        if(!visb(t.b))return;
+        /* Filled the same way as New Claims (solid holder-colour fill, dim for
+           named individuals) so a claim about to lapse reads as whose ground
+           it is, not just that it's expiring. Pink outline kept as the
+           lapsing signal instead of New Claims' white+dashed double stroke.
+           Colour comes from HCOL (the Sask Tenure per-holder map, every
+           corporate holder gets its own colour), not newClaimColor/NEWHCOL -
+           t.corp is only ever true for tenure that's ALSO a new claim this
+           week (it's looked up via NEWCORP, built from this week's new-claim
+           feed), so every lapsing claim fell through to grey before this,
+           and NEWHCOL only covers this week's top 8 new stakers, a
+           different, mostly non-overlapping set of companies from whoever's
+           ground is about to lapse. HCOL is the mapping that actually knows
+           about Orano, GEM OIL, Skyharbour etc. See "Northern Miner colour
+           scheme" in open-items.md. 2026-09-08. */
+        var col=HCOL[shortHolder(t.o)]||OTHER;
+        ctx.beginPath();poly(t.r,true);
+        ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
+        ctx.strokeStyle='rgba(255,20,147,.92)';
+        /* Outline width reduced 30% from New Claims' equivalent stroke, 2026-09-08. */
+        ctx.lineWidth=Math.max(1.9,Math.min(3.8,view.s*.02205));ctx.stroke();});
+      ctx.restore();}}
+
+  if(ON.tenure){ctx.save();
+    /* Coloured through activeColor(), same as Sask Tenure, 2026-09-09 - merged the
+       separate Alberta Tenure toggle into the Sask Tenure one (single 'Tenure
+       (SK+AB)' layer) and routed Alberta's colour decision through the same
+       Favourites-aware function Sask uses, via hcolFor()'s case-insensitive HCOL_UP
+       fallback (Alberta's registry prints ALL CAPS holder names). This means
+       ticking a favourite now highlights that company's ground in both provinces,
+       and dims everyone else's, exactly as it already did for Sask alone. Same
+       alpha rule as before (.16 fill / .5 stroke for OTHER, .30 fill / .95 stroke
+       otherwise) - the new/not-new distinction still comes through the dash
+       pattern and stroke width, unchanged. */
+    P.ab.forEach(function(A){ if(!visb(A.b))return;
+      var col=activeColor(A.o);
+      ctx.beginPath();poly(A.r,true);
+      ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.30; ctx.fill(); ctx.globalAlpha=1;
+      ctx.setLineDash(A.isNew?[]:[5,3]);
+      ctx.strokeStyle=col; ctx.globalAlpha=(col===OTHER)?.5:.95;
+      ctx.lineWidth=A.isNew?Math.max(1.8,Math.min(3.6,view.s*.022)):Math.max(.9,Math.min(2,view.s*.013));
+      ctx.stroke(); ctx.globalAlpha=1;});
+    ctx.setLineDash([]);ctx.restore();}
+
+  /* Lapsed Claims - the FULL lapsed register, added 2026-09-09. Distinct from
+     Recently Lapsed below, which only draws entries flagged isNew (lapsed since the
+     last basin_layers.py export). This draws every currently-lapsed disposition in
+     B.lapsed, matching what MARS's own FeatureAvailabilitySearch tool shows as
+     'Lapsed Features' regardless of when it lapsed. Drawn first so Recently Lapsed's
+     violet highlight still shows on top for anything in both sets. */
+  if(ON.lapall&&P.lapreg.length){ctx.save();
+    P.lapreg.forEach(function(l){ if(!visb(l.b))return;
+      ctx.beginPath();poly(l.r,true);
+      ctx.fillStyle='rgba(245,146,30,.34)';ctx.fill();
+      ctx.strokeStyle='rgba(245,146,30,.85)';
+      ctx.lineWidth=Math.max(.96,Math.min(2.16,view.s*.0132));ctx.stroke();});
+    ctx.restore();}
+
+  
+
+  if(ON.claim){
+    var newTen=P.tenure.filter(function(t){return t.isNew;});
+    if(newTen.length){ctx.save();
+      newTen.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+        if(!visb(t.b))return;
+        var col=newClaimColor(t.o,t.corp);
+        /* SOLID fill in the company colour first - a thin dashed outline alone
+           read as "not colour coded" once the claim's base fill (the dim grey
+           all-time layer underneath) dominated what's actually visible at
+           basin-wide zoom. This paints over that with a real, saturated fill
+           so a corporate new claim reads as its colour at a glance; named
+           individuals (col===OTHER) stay at the same dim grey as everything
+           else, on purpose. */
+        ctx.beginPath();poly(t.r,true);
+        ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
+        ctx.strokeStyle='rgba(255,255,255,.95)';
+        ctx.lineWidth=Math.max(2.2,Math.min(4.8,view.s*.026));ctx.stroke();
+        ctx.beginPath();poly(t.r,true);ctx.setLineDash([5,3]);
+        ctx.strokeStyle=col;ctx.lineWidth=Math.max(1.2,Math.min(2.8,view.s*.017));
+        ctx.stroke();ctx.setLineDash([]);});
+      ctx.restore();}
+    var orphanClaims=P.claims.filter(function(c){return c.orphan;});
+    if(orphanClaims.length){ctx.save();
+      orphanClaims.forEach(function(c){ if(F.holder&&shortHolder(c.o)!==F.holder)return;
+        var x=sx(c.p),y=sy(c.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
+        var col=newClaimColor(c.o,c.corp);
+        ctx.beginPath();ctx.arc(x,y,4.6,0,6.2832);
+        ctx.fillStyle=col;ctx.globalAlpha=(col===OTHER)?.35:.85;ctx.fill();ctx.globalAlpha=1;
+        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=3.2;ctx.stroke();
+        ctx.beginPath();ctx.arc(x,y,4.6,0,6.2832);
+        ctx.strokeStyle=col;ctx.lineWidth=1.6;ctx.stroke();});
+      ctx.restore();}
+  }
+
+  if(ON.dep&&P.deps.length){ctx.save();
+    /* Symbol size ramps up from a smaller reset-view size to the full pixel size as the
+       viewer zooms in, added 2026-09-09 - at reset (view.s===home.s) the ramp factor is 1,
+       giving the reduced size below; zooming in raises view.s and the radius grows linearly
+       until it reaches the original fixed size (rBase), where it stays capped exactly as
+       before. Ezra's ask: smaller at reset view, unchanged zoomed-in behavior. */
+    var depZoom=home?Math.max(1,view.s/home.s):1;
+    P.deps.forEach(function(d){ if(F.status&&d.s!==F.status)return;
+      var x=sx(d.p),y=sy(d.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
+      var pr=(d.prod==='Yes'),rBase=pr?6:4.6,rMin=pr?3.6:2.8;
+      var r=Math.min(rBase,rMin*depZoom);ctx.beginPath();
+      pr?ctx.rect(x-r/1.3,y-r/1.3,r*1.54,r*1.54):ctx.arc(x,y,r,0,6.2832);
+      ctx.fillStyle='rgba(255,0,0,.93)';ctx.fill();
+      ctx.strokeStyle=surf;ctx.lineWidth=1.3;ctx.stroke();});
+    ctx.restore();}
+
+  if(ON.smdi&&P.smdi.length){ctx.save();
+    P.smdi.forEach(function(d){ if(F.smdippm&&(d.ppm==null||d.ppm<F.smdippm))return;
+      var x=sx(d.p),y=sy(d.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
+      ctx.beginPath();ctx.arc(x,y,3.4,0,6.2832);
+      ctx.fillStyle=(d.ppm!=null)?'rgba(249,115,22,.9)':'rgba(249,115,22,.4)';ctx.fill();
+      ctx.strokeStyle=surf;ctx.lineWidth=1.1;ctx.stroke();});
+    ctx.restore();}
+
+  if(ON.mine&&P.mines.length){ctx.save();
+    /* Symbol size ramps up from a smaller reset-view size to the full pixel size as the
+       viewer zooms in, added 2026-09-09 - same treatment as U Deposits above: at reset
+       (view.s===home.s) the ramp factor is 1, giving the reduced triangle below; zooming
+       in raises view.s and the triangle grows linearly until it reaches the original fixed
+       size (sBase=5.0/3.6), where it stays capped exactly as before. */
+    var mineZoom=home?Math.max(1,view.s/home.s):1;
+    P.mines.forEach(function(m){var x=sx(m.p),y=sy(m.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
+      var sMin=3.6,s=Math.min(6.0,sMin*mineZoom),sb=s*0.72;
+      ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x+s,y+sb);ctx.lineTo(x-s,y+sb);ctx.closePath();
+      ctx.fillStyle=m.ml?'rgba(124,58,237,.97)':'rgba(167,139,250,.92)';ctx.fill();
+      ctx.strokeStyle='#171310';ctx.lineWidth=1.3;ctx.stroke();});
+    ctx.restore();}
+
+  if(ON.place&&P.places.length){ctx.save();
+    ctx.font='10.5px "IBM Plex Sans",system-ui,sans-serif';ctx.textBaseline='middle';
+    var big=view.s>home.s*1.25;
+    P.places.forEach(function(s){var x=sx(s.p),y=sy(s.p);if(x<-40||x>W+40||y<-20||y>H+20)return;
+      ctx.beginPath();ctx.arc(x,y,3,0,6.2832);ctx.fillStyle=surf;ctx.fill();
+      ctx.strokeStyle=tok('--ink','#141413');ctx.lineWidth=1.5;ctx.stroke();
+      if(big||s.k==='Town'||s.k==='City'){
+        ctx.fillStyle=surf;ctx.globalAlpha=.75;
+        var w=ctx.measureText(s.n).width;ctx.fillRect(x+5,y-6,w+4,12);ctx.globalAlpha=1;
+        ctx.fillStyle=tok('--ink','#141413');ctx.fillText(s.n,x+7,y);}});
+    ctx.restore();}
+
+  /* News waypoints. Two toggles over one array: ON.news draws the grade stars,
+     ON.newsx everything else. The dashed ring is the position's stated uncertainty in
+     real kilometres, so it grows as you zoom in - a claim-block centroid stops looking
+     like a drill collar the moment the scale makes the difference matter. */
+  if((ON.news||ON.newsx)&&P.news.length){ctx.save();
+    var pa9=PROJ(-106,58),pb9=PROJ(-105,58);
+    var pxkm=Math.abs(sx(pb9)-sx(pa9))/km([-106,58],[-105,58]);
+    /* Other News stars are painted FIRST so the Grade stars always land on top of them -
+       Ezra, 2026-09-09: reversed from the prior rule (grade stars used to be painted first
+       so Other News stayed on top). Several waypoints legitimately share a position
+       (Paladin's Atlas grade result and its Birch Narrows agreement are ~3 km apart, one
+       marker-width at basin zoom), so this is a real collision, not a hypothetical. Keep
+       the two passes in this order; pick() below walks them the same way so the marker you
+       click is the one you can see. */
+    [[NEWSX,ON.newsx],[NEWSG,ON.news]].forEach(function(pass){
+      if(!pass[1])return;
+      pass[0].forEach(function(w){
+        var x=sx(w.p),y=sy(w.p);if(x<-60||x>W+60||y<-60||y>H+60)return;
+        var al=favMatchesCo(w.co)?1:.22;
+        if(w.unc>0){var rr=Math.max(7,w.unc*pxkm);
+          ctx.globalAlpha=al*.5;ctx.strokeStyle=w.col;ctx.lineWidth=1.1;ctx.setLineDash([3,3]);
+          ctx.beginPath();ctx.arc(x,y,rr,0,6.2832);ctx.stroke();ctx.setLineDash([]);}
+        ctx.globalAlpha=al;ctx.fillStyle=w.col;ctx.strokeStyle=surf;ctx.lineWidth=1.3;
+        newsGlyph(x,y,w.ty);ctx.fill();ctx.stroke();});});
+    ctx.restore();}
+
+  if(MS.pts.length){ctx.save();ctx.strokeStyle=tok('--hot','#AE3A1C');ctx.lineWidth=1.8;
+    ctx.setLineDash([5,4]);ctx.beginPath();var a=PROJ(MS.pts[0][0],MS.pts[0][1]);
+    ctx.moveTo(sx(a),sy(a));var e=MS.pts[1]||MS.hover;
+    if(e){var b2=PROJ(e[0],e[1]);ctx.lineTo(sx(b2),sy(b2));}
+    ctx.stroke();ctx.setLineDash([]);
+    [MS.pts[0],MS.pts[1]].forEach(function(pt){if(!pt)return;var p=PROJ(pt[0],pt[1]);
+      ctx.beginPath();ctx.arc(sx(p),sy(p),4,0,6.2832);ctx.fillStyle=tok('--hot','#AE3A1C');ctx.fill();});
+    ctx.restore();}
+  drawScale();
+}
+function drawScale(){var el=document.getElementById('scaleLine'),tx=document.getElementById('scaleTxt');
+  if(!el)return;var pa=PROJ(-106,58),pb=PROJ(-105,58);
+  var pxDeg=Math.abs(sx(pb)-sx(pa)),kmDeg=km([-106,58],[-105,58]);
+  var t=[10,25,50,100,200,500],ch=t[0];
+  for(var i=t.length-1;i>=0;i--){if(t[i]/kmDeg*pxDeg<150){ch=t[i];break;}}
+  el.style.width=Math.round(ch/kmDeg*pxDeg)+'px';tx.textContent=ch+' km';}
+
+/* ---------- hit test ---------- */
+function inRing(r,x,y){var c=false;
+  for(var i=0,j=r.length-1;i<r.length;j=i++){
+    var xi=sx(r[i]),yi=sy(r[i]),xj=sx(r[j]),yj=sy(r[j]);
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi))c=!c;}
+  return c;}
+function pick(mx,my){
+  /* Hit radius widened 13px->20px, 2026-09-09 (fourth pass): Ezra's diagnostic showed
+     precise, zero-movement clicks aimed at Grade Release/Other News/U Deposit markers
+     landing on the tenure polygon underneath instead ("hit type=ten") or missing
+     entirely ("pick()=NO HIT") - not a click-vs-drag bug at all, a hit-test radius too
+     tight for a small point marker on a busy basin-wide map. Polygon features (tenure,
+     Alberta tenure, recently-lapsed) hit-test via inRing() with no such radius cap, so
+     they were always far more forgiving to click than the tiny marker dots/stars sitting
+     on top of them. */
+  var best=null,bd=20*20;
+  function pt(p,mk){var dx=sx(p)-mx,dy=sy(p)-my,d=dx*dx+dy*dy;if(d<bd){bd=d;best=mk();}}
+  if(ON.place)P.places.forEach(function(s){pt(s.p,function(){return{t:'place',o:s};});});
+  /* Same order as the draw pass, and <= rather than < on the distance test, so where a grade
+     star and an Other News star coincide the hover reports the one drawn on top. */
+  function ptTop(p,mk){var dx=sx(p)-mx,dy=sy(p)-my,d=dx*dx+dy*dy;if(d<=bd){bd=d;best=mk();}}
+  if(ON.newsx)NEWSX.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
+  if(ON.news)NEWSG.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
+  if(ON.mine)P.mines.forEach(function(m){pt(m.p,function(){return{t:'mine',o:m};});});
+  if(ON.dep)P.deps.forEach(function(d){if(!F.status||d.s===F.status)pt(d.p,function(){return{t:'dep',o:d};});});
+  if(ON.smdi)P.smdi.forEach(function(d){if(!F.smdippm||(d.ppm!=null&&d.ppm>=F.smdippm))pt(d.p,function(){return{t:'smdi',o:d};});});
+  if(ON.claim)P.claims.forEach(function(c){if(c.orphan&&(!F.holder||shortHolder(c.o)===F.holder))pt(c.p,function(){return{t:'claim',o:c};});});
+  if(best)return best;
+  if(ON.tenure){for(var i=0;i<P.tenure.length;i++){var t=P.tenure[i];
+    if(!tenVis(t)||!visb(t.b))continue;
+    if(inRing(t.r,mx,my))return{t:'ten',o:t};}}
+  if(ON.tenure){for(var ja=0;ja<P.ab.length;ja++){var A=P.ab[ja];
+    if(!visb(A.b))continue;
+    if(inRing(A.r,mx,my))return{t:'ab',o:A};}}
+  
+  if(ON.lapall){for(var jla=0;jla<P.lapreg.length;jla++){var LA=P.lapreg[jla];
+    if(!visb(LA.b))continue;
+    if(inRing(LA.r,mx,my))return{t:'lapall',o:LA};}}
+  if(ON.restricted){for(var jr=0;jr<P.restricted.length;jr++){var R=P.restricted[jr];
+    if(!visb(R.b))continue;
+    if(inRing(R.r,mx,my))return{t:'restricted',o:R};}}
+  if(ON.heat){P.heat.forEach(function(h){if(h.mx>=F.cps)pt(h.p,function(){return{t:'heat',o:h};});});if(best)return best;}
+  if(ON.geochem){P.geochem.forEach(function(h){if(h.mx>=F.uppm)pt(h.p,function(){return{t:'geochem',o:h};});});if(best)return best;}
+  if(ON.cond&&view.s>home.s*1.6){var bl=10*10,bc=null;
+    P.conds.forEach(function(c){if(!condVis(c)||!visb(c.b))return;
+      for(var i=0;i<c.r.length-1;i++){var x1=sx(c.r[i]),y1=sy(c.r[i]),x2=sx(c.r[i+1]),y2=sy(c.r[i+1]);
+        var vx=x2-x1,vy=y2-y1,L=vx*vx+vy*vy;
+        var tt=L?Math.max(0,Math.min(1,((mx-x1)*vx+(my-y1)*vy)/L)):0;
+        var ax=mx-(x1+tt*vx),ay=my-(y1+tt*vy),d=ax*ax+ay*ay;
+        if(d<bl){bl=d;bc={t:'cond',o:c};}}});
+    if(bc)return bc;}
+  return null;}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function row(k,v){return '<div class="row"><span>'+esc(k)+'</span><span>'+esc(v)+'</span></div>';}
+/* All on-map coordinate readouts are UTM Zone 13N (Ezra's request, 2026-09-07)
+   - matches the grid ticks and the basin outline's own source CRS, not
+   lat/long. */
+function utmStr(lon,lat){ var u=UTM13(lon,lat);
+  return Math.round(u[0]).toLocaleString()+'mE '+Math.round(u[1]).toLocaleString()+'mN (13N)'; }
+function showTip(h,mx,my){
+  var o=h.o,s='';
+  if(h.t==='dep')s='<b>'+esc(o.n)+'</b>'+row('Status',o.s)+row('Producing',o.prod==='Yes'?'yes':'no')+
+    row('Position',utmStr(o.ll[0],o.ll[1]))+
+    '<div class="hint">click for the provincial deposit record</div>';
+  else if(h.t==='smdi')s='<b>'+esc(o.n||('SMDI '+o.id))+'</b>'+row('Status',o.s)+
+    (o.ppm!=null?row('Grade (best reported)',(o.pct!=null?o.pct.toFixed(3):'-')+'% U3O8 / '+Math.round(o.ppm).toLocaleString()+' ppm U'):row('Grade','not reported'))+
+    (o.ppm!=null&&o.assay===false?'<div class="hint">radiometric/gamma-derived figure, not a chemical assay</div>':'')+
+    (o.ppm!=null?'<div class="hint">self-extracted from narrative text - approximate, not independently verified</div>':'')+
+    '<div class="hint">click for the provincial SMDI record</div>';
+  else if(h.t==='ten')s='<b>'+esc(o.d)+'</b>'+row('Holder',shortHolder(o.o))+
+    (o.e?row('Registered',o.e):'')+(o.st?row('Status',o.st):'')+
+    (o.x?row('Good standing until',o.x):'')+
+    (o.lapseSoon&&o.dep!=null?row('$ to hold','$'+Math.round(o.dep).toLocaleString()):'')+
+    (o.isNew?'<div class="hint">registered this week</div>':
+      o.lapseSoon?'<div class="hint">lapses within 7 days - opens back up to staking around '+esc(o.x)+'</div>':'');
+  else if(h.t==='claim')s='<b>'+esc(o.d)+'</b>'+row('Holder',shortHolder(o.o))+
+    (o.e?row('Registered',o.e):'')+'<div class="hint">registered this week</div>';
+  else if(h.t==='ab')s='<b>'+esc(o.d)+'</b>'+row('Holder of record',shortHolder(o.o))+
+    (o.n?row('Agreement',o.n):'')+(o.x?row('Expires',o.x):'')+
+    '<div class="hint">Alberta agreement. Holder of record is not always the beneficial owner'+(o.isNew?' &middot; new since the last export':'')+'</div>';
+  
+  else if(h.t==='lapall')s='<b>'+esc(o.d)+'</b>'+row('Last holder',shortHolder(o.o))+
+    (o.st?row('Status',o.st):'')+'<div class="hint">lapsed - open to staking (full register, MARS \'Lapsed Features\')</div>';
+  else if(h.t==='restricted'){var rty={park:'Park / protected area',reserve:'Indian reserve',
+    claim:'Land claim selection',urban:'Urban municipality'}[o.ty]||o.ty;
+    s='<b>'+esc(o.n)+'</b>'+row('Type',rty)+'<div class="hint">Unavailable for staking (MARS restriction)</div>';}
+  else if(h.t==='mine')s='<b>'+esc(o.n)+'</b>'+(o.st?row('Status',o.st):'')+
+    row('Type',o.ml?'mill':'mine')+(o.u?row('Commodity','uranium'):'');
+  else if(h.t==='place')s='<b>'+esc(o.n)+'</b>'+row('Type',o.k)+
+    row('Position',utmStr(o.ll[0],o.ll[1]));
+  else if(h.t==='cond')s='<b>EM conductor</b>'+(o.sv?row('Survey',o.sv):'')+(o.t?row('Type',o.t):'')+
+    (o.y?row('Year',o.y):'')+(o.L?row('Strike length',o.L>=1000?(o.L/1000).toFixed(1)+' km':o.L+' m'):'');
+  else if(h.t==='heat')s='<b>Radioactive boulders</b>'+row('In cell',o.n)+row('Peak',o.mx+' cps')+row('Mean',o.av+' cps');
+  else if(h.t==='geochem')s='<b>U geochemistry (lake sed. + soil)</b>'+row('In cell',o.n)+row('Peak',o.mx+' ppm U')+row('Mean',o.av+' ppm U');
+  else if(h.t==='news')s='<b>'+esc(o.n)+'</b>'+row('Company',o.co)+
+    row('Type',(NEWSTYPE[o.ty]||NEWSTYPE.grade).lab)+
+    (o.g?row(o.ty==='grade'?'Grade':'Detail',o.g):'')+
+    (o.when?row('Reported',o.when):'')+
+    row('Position',utmStr(o.ll[0],o.ll[1]))+
+    row('Anchor',(ANCLAB[o.anc]||o.anc)+(o.unc>0?' \u00b1'+o.unc+' km':''))+
+    (o.note?'<div class="hint">'+esc(o.note)+'</div>':'')+
+    (o.url?'<div class="hint">click to open the release</div>':'');
+  tip.innerHTML=s;tip.hidden=false;
+  var r=stage.getBoundingClientRect(),tw=tip.offsetWidth,th=tip.offsetHeight;
+  var L=mx+14,T=my+14; if(L+tw>r.width-6)L=mx-tw-14; if(T+th>r.height-6)T=my-th-14;
+  tip.style.left=Math.max(4,L)+'px';tip.style.top=Math.max(4,T)+'px';}
+
+/* ---------- events ---------- */
+var drag=null,MS={on:false,pts:[],hover:null};
+function evp(e){var r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
+function invert(mx,my){var lon=-106,lat=58;
+  for(var i=0;i<40;i++){var p=PROJ(lon,lat),px=sx(p),py=sy(p);
+    var e1=PROJ(lon+.01,lat),e2=PROJ(lon,lat+.01);
+    var a=(sx(e1)-px)/.01,b=(sy(e1)-py)/.01,c=(sx(e2)-px)/.01,d=(sy(e2)-py)/.01;
+    var det=a*d-c*b; if(!det)break;
+    var rx=mx-px,ry=my-py; lon+=(rx*d-c*ry)/det; lat+=(a*ry-rx*b)/det;
+    if(Math.abs(rx)<.01&&Math.abs(ry)<.01)break;}
+  return [lon,lat];}
+/* Click-to-open FIX 2026-09-09 (third pass): grab-a-marker suppresses panning.
+   The 3px then 8px movement thresholds both failed in the field - Ezra's diagnostic
+   showed real pointerdown-to-pointerup deltas of 100-130px on a plain single click,
+   far past ordinary jitter. Rather than guess a bigger number, this drops movement
+   thresholds entirely for anything that starts on a clickable feature: if pick() at
+   pointerdown lands on a dep/news marker, that marker "grabs" the gesture - panning
+   is suppressed for its duration (view.tx/ty are not touched in pointermove) - and
+   pointerup always fires that marker's open action, regardless of how far the cursor
+   drifted in between. This is safe because a suppressed pan means the map itself
+   never moved, so there's no ambiguity about what was clicked. A pointerdown that
+   does NOT start on a marker still pans exactly as before - only marker hits change
+   behaviour. */
+cv.addEventListener('pointerdown',function(e){try{cv.setPointerCapture(e.pointerId);
+  if(MS.on){var q=evp(e);if(MS.pts.length>=2)MS.pts=[];MS.pts.push(invert(q[0],q[1]));draw();measOut();return;}
+  var q0=evp(e),h0=pick(q0[0],q0[1]);
+  var hit=(h0&&((h0.t==='dep'&&h0.o.id)||(h0.t==='smdi'&&h0.o.id)||(h0.t==='news')))?h0:null;
+  drag={x:e.clientX,y:e.clientY,tx:view.tx,ty:view.ty,moved:false,hit:hit};
+  cv.classList.add('drag');
+  }catch(err){console.error('pointerdown error',err);}});
+cv.addEventListener('pointermove',function(e){var q=evp(e);
+  if(drag){
+    if(drag.hit)return; /* marker grabbed the gesture - no panning while held */
+    var dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+    if(Math.abs(dx)>8||Math.abs(dy)>8)drag.moved=true;
+    view.tx=drag.tx+dx;view.ty=drag.ty+dy;draw();return;}
+  if(MS.on){if(MS.pts.length===1){MS.hover=invert(q[0],q[1]);draw();measOut();}return;}
+  var h=pick(q[0],q[1]); h?showTip(h,q[0],q[1]):(tip.hidden=true);});
+function endDrag(){if(drag){drag=null;cv.classList.remove('drag');}}
+/* ROOT CAUSE FOUND 2026-09-09 (sixth pass): a raw-event probe (since removed) caught
+   it - pointerup was throwing "A parameter or an operation is not supported by the
+   underlying object". That's a NotSupportedError DOMException thrown BY
+   window.open() ITSELF, synchronously, on Ezra's setup. This page runs inside a
+   sandboxed iframe (the Artifacts viewer on claude.ai) - script-invoked
+   window.open() from inside that sandbox throws in Firefox-family browsers
+   (Mullvad Browser is Tor-Browser/Firefox-based) instead of just returning null
+   the way it does on an ordinary page, when the sandbox doesn't grant popup
+   permission the way the calling script expects. The masthead's "open in new tab"
+   link (a genuine <a target=_blank> element) has worked the entire time, because
+   sandboxed iframes generally do allow a real anchor click/navigation even when
+   they block script-invoked window.open(). So openLink() below replaces
+   window.open() with exactly that: build a real <a>, click it via the trusted
+   pointerup gesture, discard it. */
+function openLink(url){
+  var a=document.createElement('a');
+  a.href=url;a.target='_blank';a.rel='noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+cv.addEventListener('pointerup',function(e){try{
+  var wasClick=drag&&!drag.moved;
+  var grabbed=drag&&drag.hit;
+  var h=grabbed?drag.hit:null;
+  endDrag();
+  if(MS.on)return;
+  if(!grabbed&&!wasClick)return;
+  if(!h){var q=evp(e);h=pick(q[0],q[1]);}
+  if(!h)return;
+  if(h.t==='dep'&&h.o.id){
+    var u1='https://mineraldeposits.saskatchewan.ca/Home/Viewdetails/'+encodeURIComponent(h.o.id);
+    openLink(u1);
+    return;
+  }
+  if(h.t==='smdi'&&h.o.id){
+    var u1s='https://mineraldeposits.saskatchewan.ca/Home/Viewdetails/'+encodeURIComponent(h.o.id);
+    openLink(u1s);
+    return;
+  }
+  if(h.t==='news'){
+    if(!h.o.url)return;
+    openLink(h.o.url);
+    return;
+  }
+  }catch(err){console.error('pointerup error',err);}
+});
+cv.addEventListener('pointercancel',endDrag);
+cv.addEventListener('pointerleave',function(){tip.hidden=true;endDrag();});
+cv.addEventListener('wheel',function(e){e.preventDefault();var q=evp(e),f=Math.pow(1.0015,-e.deltaY);
+  var ns=Math.max(home.s*.6,Math.min(home.s*260,view.s*f)),k=ns/view.s;
+  view.tx=q[0]-(q[0]-view.tx)*k;view.ty=q[1]-(q[1]-view.ty)*k;view.s=ns;draw();},{passive:false});
+function measOut(){var el=document.getElementById('measOut');if(!el)return;
+  var a=MS.pts[0],b=MS.pts[1]||MS.hover;el.textContent=(a&&b)?km(a,b).toFixed(1)+' km':'click two points';}
+
+/* ---------- UI ---------- */
+var bar=document.getElementById('layerbar');
+var heatBar=document.getElementById('heatbar');
+/* Per-layer sliders for the heat-style layers (SMDI grade / Boulder peak / U ppm)
+   now live attached directly under their own toggle in the layer bar, instead of
+   a separate "Legend sliders" panel on the right - Ezra, 2026-09-09 night. Each
+   slider is only interactive while its layer is switched on: SLIDER_SPECS supplies
+   the range/format/state-setter per layer key, mkLyrToggle wires enable/disable to
+   the same ON[l.k] the checkbox drives, and switching a layer off also resets its
+   filter value to 0 (no filtering) so a hidden, disabled slider can never keep
+   silently filtering a layer nobody can see is filtered. */
+/* Sliders switched from linear to log-scale, 2026-09-09 (Ezra: SMDI grade slider "doesn't
+   work"; Boulder Heat / Lake & Soil Heat sliders "much too aggressive... maybe log scaling
+   is more appropriate"). All three datasets are extremely right-skewed - the vast majority
+   of records/grid-cells sit under 10% of the layer's max value, so a *linear* 0..max slider
+   put nearly all of the useful range inside the first tick or two. The <input type=range>
+   now carries a 0..LOGSTEPS *position*, not the real filter value; logPos2Val() maps that
+   position onto an exponential curve from a small floor (max/1000) up to the layer's real
+   max, so equal slider travel gives roughly equal data density instead of equal ppm/cps.
+   Position 0 still always means "no filtering". (The SMDI max itself was also independently
+   blown out by a handful of misparsed >100%-U3O8 grades - see the pct sanitizing fix at the
+   P.smdi ingestion loop above - so this is a second, complementary fix, not a substitute.) */
+var LOGSTEPS=480;
+function logPos2Val(pos,maxVal){ if(pos<=0)return 0;
+  var floor=Math.max(maxVal/1000,1e-6),t=pos/LOGSTEPS;
+  return floor*Math.pow(maxVal/floor,t);}
+var SLIDER_SPECS={
+  smdi:function(){ if(!P.smdi.length)return null;
+    return {label:'Min grade',log:true,max:SMDI_MAXPPM,
+      fmt:function(v){return v?(Math.round(v).toLocaleString()+' ppm U and up ('+(v/8480).toFixed(3)+'% U3O8)'):'all occurrences';},
+      onInput:function(v){F.smdippm=v;}};},
+  heat:function(){ if(!P.heat.length)return null;
+    return {label:'Min peak',log:true,max:HMAXC,
+      fmt:function(v){return Math.round(v)+' cps and up';},
+      onInput:function(v){F.cps=v;}};},
+  geochem:function(){ if(!P.geochem.length)return null;
+    return {label:'Min U ppm',log:true,max:GMAXC,
+      fmt:function(v){return (v<10?v.toFixed(1):Math.round(v))+' ppm and up';},
+      onInput:function(v){F.uppm=v;}};}
+};
+function mkLyrToggle(l,container){var n=l.get(),checked=!!(n&&ON[l.k]);
+  var spec=SLIDER_SPECS[l.k]?SLIDER_SPECS[l.k]():null;
+  var lab=document.createElement('label');lab.className='lyr'+(checked?' on':'');
+  lab.innerHTML='<input type="checkbox"'+(checked?' checked':'')+'><span class="kx" style="background:'+l.color+'"></span>'+
+    l.label+' <span class="ct">'+(n?n.toLocaleString():'0')+'</span>';
+  var inp=lab.querySelector('input');
+  if(!n){lab.style.opacity=.4;inp.disabled=true;ON[l.k]=false;lab.classList.remove('on');}
+  else{ON[l.k]=checked;}
+  var wrap=lab,slRow=null,slInput=null,slVal=null;
+  if(spec){
+    wrap=document.createElement('div');wrap.className='lyrgrp';wrap.appendChild(lab);
+    slRow=document.createElement('div');slRow.className='lyrslide'+(ON[l.k]?'':' dis');
+    slInput=document.createElement('input');slInput.type='range';
+    if(spec.log){slInput.min=0;slInput.max=LOGSTEPS;slInput.step=1;}
+    else{slInput.min=spec.min;slInput.max=spec.max;slInput.step=spec.step;}
+    slInput.value=0;
+    slInput.disabled=!ON[l.k];
+    slVal=document.createElement('span');slVal.className='fv';slVal.textContent=spec.fmt(0);
+    /* Stop the range's own pointer/click from bubbling up into the <label> above it -
+       a label wraps the checkbox for the toggle's own click-anywhere-to-toggle
+       behaviour, and without this a drag on the slider would also flip the layer off. */
+    slInput.addEventListener('pointerdown',function(e){e.stopPropagation();});
+    slInput.addEventListener('click',function(e){e.stopPropagation();});
+    slInput.addEventListener('input',function(){
+      var v=spec.log?logPos2Val(+slInput.value,spec.max):+slInput.value;
+      spec.onInput(v);slVal.textContent=spec.fmt(v);draw();});
+    slRow.appendChild(slInput);slRow.appendChild(slVal);
+    wrap.appendChild(slRow);
+  }
+  inp.addEventListener('change',function(){ON[l.k]=inp.checked;lab.classList.toggle('on',inp.checked);
+    if(slRow){slInput.disabled=!inp.checked;slRow.classList.toggle('dis',!inp.checked);
+      if(!inp.checked){spec.onInput(0);slInput.value=0;slVal.textContent=spec.fmt(0);}}
+    draw();});
+  container.appendChild(wrap);}
+LAYERS.forEach(function(l){mkLyrToggle(l,HEATKEYS.indexOf(l.k)>=0?heatBar:bar);});
+
+/* Filters ctrlsec (an "Isolate holder" <select> duplicating what Favourites and
+   the This Week's Stakers key already do) was removed 2026-09-09 - Ezra's call,
+   it wasn't doing anything the other controls didn't. isolateSel stays defined
+   as a permanent no-op (null) so the two guarded `if(isolateSel)` call sites
+   below don't need touching. */
+var isolateSel=null;
+
+document.getElementById('mReset').addEventListener('click',function(){
+  view.s=home.s;view.tx=home.tx;view.ty=home.ty;draw();});
+var mb=document.getElementById('mMeasure');
+mb.addEventListener('click',function(){MS.on=!MS.on;MS.pts=[];MS.hover=null;
+  mb.setAttribute('aria-pressed',MS.on?'true':'false');cv.classList.toggle('meas',MS.on);
+  var mo=document.getElementById('measOut');if(mo)mo.textContent=MS.on?'click two points':'measure off';
+  tip.hidden=true;draw();});
+
+var lg=document.getElementById('holderkey');
+/* #holderkey was removed from the page 2026-09-08; kept as a safe no-op so any
+   remaining caller does not have to be unwound. */
+function renderHolderKey(){ if(!lg||!topHolders.length)return;
+  lg.innerHTML=topCorpHolders.slice(0,16).map(function(h){
+    return '<span class="lg"><span class="sw" style="background:'+HCOL[h]+'"></span>'+
+      esc(shortHolder(h))+' <span class="ct">'+tenureCount[h]+'</span></span>';}).join('');}
+renderHolderKey();
+
+var nlg=document.getElementById('newclaimkey');
+function newSw(col){return '<span class="sw" style="background:transparent;border:2px dashed '+col+
+  ';box-shadow:0 0 0 2px rgba(255,255,255,.9) inset"></span>';}
+function renderNewClaimKey(){ if(!nlg||!newTopHolders.length)return;
+  {
+    /* Swatches read from HCOL, same as the map fill (newClaimColor(), fixed
+       2026-09-09) and same as the Sask Tenure legend - previously this used
+       FAM8[i], the old weekly-only palette, which is what made this legend
+       look internally consistent while still not matching the map's actual
+       Claim Outlines colours for the same company. */
+    nlg.innerHTML=newTopHolders.slice(0,8).map(function(h,i){
+      var active=F.holder&&h===F.holder;
+      return '<span class="lg" data-h="'+esc(h).replace(/"/g,'&quot;')+'" style="cursor:pointer'+
+        (active?';outline:1px solid #fff':'')+'" title="Click to isolate this holder on the map">'+newSw(HCOL[h]||NEWHCOL[h]||OTHER)+esc(shortHolder(h))+
+        ' <span class="ct">'+newCount[h]+' new claim'+(newCount[h]===1?'':'s')+'</span></span>';}).join('')+
+      (newTopHolders.length>8?'<span class="lg">'+newSw(OTHER)+'other corporate stakers</span>':'')+
+      '<span class="lg">'+newSw(OTHER)+'named individuals (always grey)</span>'+
+      '<span class="lgnote">Click a row to isolate that staker on the map.</span>';
+    Array.prototype.forEach.call(nlg.querySelectorAll('.lg[data-h]'),function(el){
+      el.addEventListener('click',function(){
+        var h=el.getAttribute('data-h');
+        F.holder=(F.holder===h)?'':h;
+        if(isolateSel)isolateSel.value=F.holder;
+        renderNewClaimKey();renderTopHolders();draw();
+      });
+    });
+  }}
+renderNewClaimKey();
+
+/* ---------- Top 10 holders list. This is a LIST, not the map - items are only
+   ever adjacent to their neighbour in rank order, never all-pairs-adjacent the
+   way two claims on the canvas can be - so the full validated 8-hue categorical
+   family is legal here even though the map itself stays capped at 3. Ranks 9-10
+   get no colour (past the documented 8-hue family; inventing a 9th/10th hue
+   would violate the documented-palette-only rule), just the count. Clicking a
+   row isolates that holder on the map via the existing Isolate Holder filter -
+   this is the practical way to actually SEE any one of the top 10 on the map
+   itself, one at a time (or up to 3 via Spotlight above). ---------- */
+var thlg=document.getElementById('topholders');
+function renderTopHolders(){ if(!thlg||!topCorpHolders.length)return;
+  var top10=topCorpHolders.slice(0,10);
+  thlg.innerHTML=top10.map(function(h,i){
+      var active=F.holder&&h===F.holder;
+      var col=HCOL[h];
+      var sw='<span class="sw" style="background:'+col+'"></span>';
+      return '<span class="lg" data-h="'+esc(h).replace(/"/g,'&quot;')+'" style="cursor:pointer'+
+        (active?';outline:1px solid #fff':'')+'" title="Click to isolate this holder on the map">'+sw+
+        esc(shortHolder(h))+' <span class="ct">'+tenureCount[h]+'</span></span>';}).join('')+
+    '<span class="lgnote">Ranked over all active claims. Click a row to isolate it.</span>';
+  Array.prototype.forEach.call(thlg.querySelectorAll('.lg'),function(el){
+    el.addEventListener('click',function(){
+      var h=el.getAttribute('data-h');
+      F.holder=(F.holder===h)?'':h;
+      if(isolateSel)isolateSel.value=F.holder;
+      renderTopHolders();draw();
+    });
+  });}
+renderTopHolders();
+
+/* ---------- Favourites panel (replaces the Spotlight pickers, 2026-09-08) ----
+   Every holder on the tenure snapshot is listed alphabetically with its claim
+   count and its real map colour, filtered live by the search box. Checking a
+   company sets F.fav[holderKey]; the draw pass then paints favourites in their
+   own colour and everything else in FAVDIM. ---------- */
+var favListEl=document.getElementById('favlist'),
+    favSearchEl=document.getElementById('favsearch'),
+    favCtEl=document.getElementById('favct'),
+    favClearEl=document.getElementById('favclear');
+var FAVROWS=topHolders.slice().sort(function(a,b){
+  return shortHolder(a).localeCompare(shortHolder(b));});
+function favLabel(){ return FAVN? (FAVN+' selected') : 'none selected'; }
+function renderFav(){
+  if(!favListEl)return;
+  var q=((favSearchEl&&favSearchEl.value)||'').trim().toLowerCase();
+  var rows=FAVROWS.filter(function(h){
+    return !q || shortHolder(h).toLowerCase().indexOf(q)>=0; });
+  /* ticked companies float to the top of the list, alphabetical within each
+     group, so a long selection stays together instead of scattering down a
+     267-row list. The list re-renders on every toggle, so a row does move the
+     moment it is ticked. */
+  rows.sort(function(a,b){
+    var fa=F.fav[a]?0:1, fb=F.fav[b]?0:1;
+    if(fa!==fb) return fa-fb;
+    return shortHolder(a).localeCompare(shortHolder(b)); });
+  if(!rows.length){
+    favListEl.innerHTML='<div class="favrow">no company matches that search</div>';
+  } else {
+    favListEl.innerHTML=rows.map(function(h){
+      var on=!!F.fav[h];
+      return '<label class="favrow'+(on?' on':'')+'" data-h="'+esc(h).replace(/"/g,'&quot;')+'">'+
+        '<input type="checkbox"'+(on?' checked':'')+'>'+
+        '<span class="sw" style="background:'+(HCOL[h]||OTHER)+'"></span>'+
+        '<span class="favnm">'+esc(shortHolder(h))+'</span>'+
+        '<span class="ct">'+(tenureCount[h]||0)+'</span></label>';}).join('');
+    Array.prototype.forEach.call(favListEl.querySelectorAll('.favrow[data-h]'),function(el){
+      var inp=el.querySelector('input');
+      inp.addEventListener('change',function(){
+        var h=el.getAttribute('data-h');
+        if(inp.checked)F.fav[h]=true; else delete F.fav[h];
+        syncFav(); el.classList.toggle('on',inp.checked);
+        renderFav(); renderNewClaimKey(); draw(); });
+    });
+  }
+  if(favCtEl)favCtEl.textContent=favLabel();
+}
+if(favSearchEl)favSearchEl.addEventListener('input',renderFav);
+if(favClearEl)favClearEl.addEventListener('click',function(){
+  F.fav={}; syncFav(); if(favSearchEl)favSearchEl.value='';
+  renderFav(); renderNewClaimKey(); draw(); });
+renderFav();
+
+var empty=document.getElementById('mapempty');
+if(!hasData&&empty){empty.hidden=false;
+  empty.textContent='Map layers not loaded yet. Run basin_layers.py on your machine to build the data bundle.';}
+window.addEventListener('resize',resize);
+resize();
+})();
+</script>
+
+
+
