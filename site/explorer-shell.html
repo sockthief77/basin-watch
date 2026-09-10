@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+﻿<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Basin Explorer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -358,7 +358,7 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <div class="mapmain">
       <div class="maphead">
         <div class="mapttl">
-          <h3>Basin Explorer<a class="xback" href="https://claude.ai/code/artifact/27c1b96e-0b57-47f1-bc6f-0e698e4ca186" target="_blank" rel="noopener">&larr; Basin Watch</a></h3>
+          <h3>Basin Explorer<a class="xback" href="/" rel="noopener">&larr; Basin Watch</a></h3>
         </div>
         <div class="mapbtns">
           <button type="button" id="mMeasure" class="mbtn" aria-pressed="false">Measure</button>
@@ -553,15 +553,15 @@ var topCorpHolders=topHolders.filter(isCorp);
    color, thats fine. But make sure the largest holders are the most
    distinct from each other." Evenly-spaced-by-rank hues would fail that
    last requirement outright at this count (170 corporate holders on the
-   2026-09-07 baseline -> adjacent ranks only ~2.1° apart, so rank 1 and
+   2026-09-07 baseline -> adjacent ranks only ~2.1Â° apart, so rank 1 and
    rank 2 - probably the two single most important companies on the whole
    map - would look almost identical). Fixed with the golden-angle hue
    sequence instead: `hue(i) = (i * 137.50776) % 360`. This is a standard
    low-discrepancy technique for exactly this shape of problem - each
    successive hue lands in the largest remaining gap on the hue wheel, so
    ANY prefix of the sequence (not just the full set) is already
-   well-spread. Concretely: hue(0)=0°, hue(1)=137.5°, hue(2)=275°,
-   hue(3)=52.5° - the first 4 ranks alone span the wheel almost evenly,
+   well-spread. Concretely: hue(0)=0Â°, hue(1)=137.5Â°, hue(2)=275Â°,
+   hue(3)=52.5Â° - the first 4 ranks alone span the wheel almost evenly,
    long before rank 170 ever fills in a gap between them. Later, closely-
    spaced ranks are the small holders Ezra explicitly said he doesn't need
    distinct - not the big ones. Not run through validate_palette.js, on
