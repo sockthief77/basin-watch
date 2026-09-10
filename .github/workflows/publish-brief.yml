@@ -1,0 +1,54 @@
+name: Publish daily brief
+
+# Second half of the daily-brief automation. gis-export.yml (07:30 America/Regina)
+# refreshes the map/tenure layers; the daily-brief skill itself runs ~09:00
+# America/Regina and publishes the day's news content to a small "Basin Watch -
+# Daily Handoff" Claude Artifact page (public/shared link, no credential). This
+# workflow runs 25 minutes after that - long enough for the skill to finish -
+# fetches the handoff data, merges it into data/edition.json, rebuilds the site,
+# and pushes using GitHub's own per-run token, exactly like gis-export.yml does
+# for the map data. No PAT, nothing stored as a secret.
+#
+# If the handoff page isn't reachable yet (skill still running, or not yet
+# shared), scripts/merge_edition.py exits cleanly without changing anything,
+# and this workflow just finds nothing to commit - see that script for the
+# "never wipe good data with a failed fetch" reasoning.
+
+on:
+  schedule:
+    # 09:25 America/Regina. Saskatchewan does not observe DST (fixed
+    # UTC-6 year-round), so this cron is correct every day of the year.
+    - cron: "25 15 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch today's brief content
+        run: python scripts/merge_edition.py
+
+      - name: Rebuild site
+        run: python scripts/build.py
+
+      - name: Commit and push if anything changed
+        run: |
+          git config user.name "basin-watch-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/edition.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Daily brief refresh ($(date -u +%Y-%m-%d))"
+            git push
+          fi
