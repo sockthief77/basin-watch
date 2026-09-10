@@ -81,6 +81,14 @@ def main() -> None:
     (DIST / "explorer" / "index.html").write_text(explorer_html, encoding="utf-8")
     print(f"wrote dist/explorer/index.html ({len(explorer_html):,} bytes)")
 
+    # Cloudflare's static asset server doesn't reliably declare charset=utf-8
+    # on its own, and without it browsers fall back to guessing the encoding -
+    # which garbles every non-ASCII character on the page (U3O8 subscripts,
+    # en dashes, etc). Force it explicitly for every response.
+    headers_path = DIST / "_headers"
+    headers_path.write_text("/*\n  Content-Type: text/html; charset=utf-8\n", encoding="utf-8")
+    print("wrote dist/_headers")
+
     print(f"bundle: {bundle.get('generated')}, {len(bundle.get('tenure', [])):,} tenure records, "
           f"{len(bundle.get('news', [])):,} news waypoints")
 
