@@ -339,6 +339,31 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .stkpair{flex-direction:column}
   #mapcv{height:340px}
 }
+
+.footbtns{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 0}
+.footbtn{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:7px 14px;
+  background:var(--surface-2);color:var(--ink);border:1px solid var(--line);cursor:pointer;
+  text-decoration:none;display:inline-flex;align-items:center;border-radius:2px;
+  transition:border-color .12s,color .12s}
+.footbtn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.footbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:520px){.footbtns{flex-wrap:wrap;justify-content:stretch}
+  .footbtn{flex:1 1 auto;justify-content:center}}
+
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;
+  justify-content:center;z-index:80;padding:16px}
+.ovl[hidden]{display:none}
+.mdl{background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  padding:22px 24px 20px;max-width:360px;width:100%;box-shadow:var(--shadow)}
+.mdl h3{margin:0 0 6px;font-family:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  font-size:18px;font-weight:700}
+.mdl p{margin:0 0 14px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.mdl .mrow{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.mdl .mbtn2{font-family:"IBM Plex Mono",monospace;font-size:12px;padding:7px 14px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer;border-radius:2px}
+.mdl .mbtn2:hover{border-color:var(--accent)}
+.mdl .mbtn2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mdl .mbtn2.primary{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 </style>
 
 <div class="wrap">
@@ -398,6 +423,21 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </div>
 
 <!--__EDITION_BOTTOM__-->
+
+<div class="footbtns">
+  <button type="button" id="nlOpenBtn" class="footbtn">Newsletter Sign-Up</button>
+  <a href="mailto:SockThief77@proton.me" class="footbtn" title="Issues? Recommendations? General Inquiries? Click here!">Contact Me</a>
+</div>
+
+<div class="ovl" id="nlOverlay" hidden>
+  <div class="mdl" role="dialog" aria-modal="true" aria-labelledby="nlTitle">
+    <h3 id="nlTitle">Newsletter Sign-Up (Coming Soon)</h3>
+    <p>The text-only daily brief - news release summaries and Basin Explorer claims-movement notes, no map - is on the way. Check back soon to sign up.</p>
+    <div class="mrow">
+      <button type="button" class="mbtn2 primary" id="nlCancelBtn">Got it</button>
+    </div>
+  </div>
+</div>
 
 <footer>
 </footer>
@@ -1731,6 +1771,20 @@ window.addEventListener('resize',resize);
 resize();
 })();
 </script>
+<script>
+(function(){
+"use strict";
+var nlOpenBtn=document.getElementById('nlOpenBtn');
+var nlOverlay=document.getElementById('nlOverlay');
+var nlCancelBtn=document.getElementById('nlCancelBtn');
 
+function nlOpen(){ if(nlOverlay) nlOverlay.hidden=false; }
+function nlClose(){ if(nlOverlay) nlOverlay.hidden=true; }
+if(nlOpenBtn) nlOpenBtn.addEventListener('click', nlOpen);
+if(nlCancelBtn) nlCancelBtn.addEventListener('click', nlClose);
+if(nlOverlay) nlOverlay.addEventListener('click', function(e){ if(e.target===nlOverlay) nlClose(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape' && nlOverlay && !nlOverlay.hidden) nlClose(); });
+})();
+</script>
 
 
