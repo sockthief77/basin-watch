@@ -1,1 +1,18 @@
-node_modules/\ndist/\n*.pyc\n__pycache__/\n.env
+node_modules/
+dist/
+*.pyc
+__pycache__/
+.env
+
+# Raw ArcGIS exports and the working map_bundle.json - large, regenerated
+# every gis-export.yml run, not needed once merge_map_bundle.py has folded
+# the relevant keys into data/bundle.json. The small diff-state files
+# (ab_state.json, lapsed_state.json, smdi_grade_cache.json) ARE tracked -
+# see the negation patterns below - since basin_layers.py needs them from
+# the previous run to compute what's new.
+gis/exports/*.geojson
+gis/exports/map_bundle.json
+gis/exports/export_log.txt
+!gis/exports/ab_state.json
+!gis/exports/lapsed_state.json
+!gis/exports/smdi_grade_cache.json
