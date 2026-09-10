@@ -16,9 +16,9 @@ name: Publish daily brief
 
 on:
   schedule:
-    # 08:55 America/Regina. Saskatchewan does not observe DST (fixed
+    # 09:20 America/Regina. Saskatchewan does not observe DST (fixed
     # UTC-6 year-round), so this cron is correct every day of the year.
-    - cron: "55 14 * * *"
+    - cron: "20 15 * * *"
   workflow_dispatch: {}
 
 permissions:
