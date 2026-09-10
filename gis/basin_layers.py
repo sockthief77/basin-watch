@@ -388,24 +388,44 @@ def main():
     print(f"  lakes bundled: {len(lb)} ({len(lk)} SK candidates, {len(ab_lk)} AB candidates)")
 
     # ---- 7. radioactive boulders -> cps grid ----
+    # Static historical dataset (boulder occurrences logged over decades) - the true
+    # count barely moves run to run, so a healthy fetch should always land close to
+    # its documented ~6,600. BOULDER_FLOOR guards against a failed/partial query
+    # (q() swallows a network/DNS failure and just returns whatever it has so far,
+    # by design - see q()'s own docstring) silently posing as "the real count is
+    # near zero today." Added 2026-09-10 after exactly that happened on a live run:
+    # the query failed outright, bo came back [], and boulder_grid/boulder_total
+    # would otherwise have been written as empty/0 for this export - map-pipeline's
+    # merge guard caught the grid (an empty list) but boulder_total, a plain int,
+    # slipped through as an unguarded 0 and broke the Boulder Heat toggle on the
+    # live site. Withholding both keys here, at the source, means a bad fetch never
+    # produces a number for the merge step to have to second-guess in the first
+    # place - a missing key is left untouched by the merge, a present-but-wrong
+    # value has to be caught downstream, which is a strictly harder job.
     print("radioactive boulders")
+    BOULDER_FLOOR = 1000  # documented count is ~6,591; well below half is not a real day
     bo = q(f"{EGIS}/Regional_Datasets_and_Compilations/FeatureServer/4", "1=1",
            "BOULDER_ID,YEAR,LITHOLOGY,CLUSTER_,CPS,BACKGROUND,CPS_RANGE,U308_ASSAY_RESULTS",
            label="boulders")
     save("boulders", esri_to_gj(bo))
-    grid = {}
-    for f in bo:
-        g = f.get("geometry") or {}
-        if g.get("x") is None:
-            continue
-        cps = f["attributes"].get("CPS") or 0
-        k = (round(g["x"]/0.04), round(g["y"]/0.02))
-        c = grid.setdefault(k, {"n": 0, "mx": 0, "s": 0})
-        c["n"] += 1; c["mx"] = max(c["mx"], cps); c["s"] += cps
-    B["boulder_grid"] = [{"x": round(k[0]*0.04, 4), "y": round(k[1]*0.02, 4),
-                          "n": v["n"], "mx": round(v["mx"]), "av": round(v["s"]/v["n"])}
-                         for k, v in grid.items()]
-    B["boulder_total"] = len(bo)
+    if len(bo) < BOULDER_FLOOR:
+        print(f"  ! boulders: only {len(bo)} returned (expected ~6,591) - treating as a "
+              f"failed/partial query, NOT writing boulder_grid/boulder_total this run "
+              f"(existing live values will be kept by the merge step)")
+    else:
+        grid = {}
+        for f in bo:
+            g = f.get("geometry") or {}
+            if g.get("x") is None:
+                continue
+            cps = f["attributes"].get("CPS") or 0
+            k = (round(g["x"]/0.04), round(g["y"]/0.02))
+            c = grid.setdefault(k, {"n": 0, "mx": 0, "s": 0})
+            c["n"] += 1; c["mx"] = max(c["mx"], cps); c["s"] += cps
+        B["boulder_grid"] = [{"x": round(k[0]*0.04, 4), "y": round(k[1]*0.02, 4),
+                              "n": v["n"], "mx": round(v["mx"]), "av": round(v["s"]/v["n"])}
+                             for k, v in grid.items()]
+        B["boulder_total"] = len(bo)
 
     # ---- 7b. uranium geochemistry (lake sediment + till/soil) -> ppm grid ----
     # Two Saskatchewan Geological Survey point layers, both carry a plain U_PPM field
@@ -416,38 +436,60 @@ def main():
     # separate "GSC Lake Sediment Analyses" layer (federal NGR program, field name is
     # "U" not "U_PPM") is a different compilation with unconfirmed overlap against
     # layer 1 - deliberately not included yet, so lake coverage isn't double-counted.
+    #
+    # Both static historical surveys are pulled and floor-checked SEPARATELY before
+    # being combined, for the same reason as the boulder floor above: a merged grid
+    # built from one healthy source plus one silently-failed source is NON-empty
+    # (so a downstream "was it empty?" guard never notices) but is missing an entire
+    # category of coverage - exactly what happened 2026-09-10 when the lake-sediment
+    # query failed, till/soil succeeded, and the resulting geochem_grid quietly lost
+    # 932 cells (the whole southwest-basin quadrant) while still looking like a
+    # normal, non-empty, "real" update. There's no good way to recombine one fresh
+    # source with the OTHER source's stale-but-good data after the fact (this export
+    # doesn't carry the previous run's per-source split, only the final combined
+    # grid) - so if either source looks broken, the safe move is to withhold the
+    # whole combined layer this run and keep whatever's already live, rather than
+    # publish a plausible-looking but silently incomplete grid.
     print("uranium geochemistry (lake sediment + till/soil)")
-    gc_samples = []
+    LAKESED_FLOOR = 500     # documented count is ~3,000
+    TILLSOIL_FLOOR = 2000   # documented count is ~12,700
     ls = q(f"{EGIS}/Analytical_and_Rock_Property_Data/FeatureServer/1", "U_PPM IS NOT NULL",
            "SAMPLE_NO,EASTING,NORTHING,U_PPM", label="lake sediment U")
-    for f in ls:
-        g = f.get("geometry") or {}
-        u = f["attributes"].get("U_PPM")
-        if g.get("x") is None or u is None:
-            continue
-        gc_samples.append((g["x"], g["y"], u))
     ti = q(f"{EGIS}/Analytical_and_Rock_Property_Data/FeatureServer/4", "U_PPM IS NOT NULL",
            "SAMPLE_NUMBER_ID,UTM_EASTING,UTM_NORTHING,U_PPM", label="till/soil U")
-    for f in ti:
-        g = f.get("geometry") or {}
-        u = f["attributes"].get("U_PPM")
-        if g.get("x") is None or u is None:
-            continue
-        gc_samples.append((g["x"], g["y"], u))
+    if len(ls) < LAKESED_FLOOR or len(ti) < TILLSOIL_FLOOR:
+        print(f"  ! geochem: lake sed. {len(ls)} (expected ~3,000), till/soil {len(ti)} "
+              f"(expected ~12,700) - at least one source looks like a failed/partial "
+              f"query, NOT writing geochem_grid/geochem_total this run (existing live "
+              f"values will be kept by the merge step)")
+    else:
+        gc_samples = []
+        for f in ls:
+            g = f.get("geometry") or {}
+            u = f["attributes"].get("U_PPM")
+            if g.get("x") is None or u is None:
+                continue
+            gc_samples.append((g["x"], g["y"], u))
+        for f in ti:
+            g = f.get("geometry") or {}
+            u = f["attributes"].get("U_PPM")
+            if g.get("x") is None or u is None:
+                continue
+            gc_samples.append((g["x"], g["y"], u))
 
-    ggrid = {}
-    for x, y, u in gc_samples:
-        if not inwin(x, y):
-            continue
-        k = (round(x/0.04), round(y/0.02))
-        c = ggrid.setdefault(k, {"n": 0, "mx": 0, "s": 0})
-        c["n"] += 1; c["mx"] = max(c["mx"], u); c["s"] += u
-    B["geochem_grid"] = [{"x": round(k[0]*0.04, 4), "y": round(k[1]*0.02, 4),
-                          "n": v["n"], "mx": round(v["mx"], 2), "av": round(v["s"]/v["n"], 2)}
-                         for k, v in ggrid.items()]
-    B["geochem_total"] = len(gc_samples)
-    print(f"  geochem samples: {len(gc_samples)} ({len(ls)} lake sed. + {len(ti)} till/soil), "
-          f"{len(B['geochem_grid'])} grid cells in window")
+        ggrid = {}
+        for x, y, u in gc_samples:
+            if not inwin(x, y):
+                continue
+            k = (round(x/0.04), round(y/0.02))
+            c = ggrid.setdefault(k, {"n": 0, "mx": 0, "s": 0})
+            c["n"] += 1; c["mx"] = max(c["mx"], u); c["s"] += u
+        B["geochem_grid"] = [{"x": round(k[0]*0.04, 4), "y": round(k[1]*0.02, 4),
+                              "n": v["n"], "mx": round(v["mx"], 2), "av": round(v["s"]/v["n"], 2)}
+                             for k, v in ggrid.items()]
+        B["geochem_total"] = len(gc_samples)
+        print(f"  geochem samples: {len(gc_samples)} ({len(ls)} lake sed. + {len(ti)} till/soil), "
+              f"{len(B['geochem_grid'])} grid cells in window")
 
     # ---- 8. mineral tenure polygons ----
     print("mineral tenure polygons (all active dispositions)")
