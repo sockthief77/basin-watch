@@ -1,5 +1,6 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Basin Watch</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='4.2' r='1.8' fill='%23141413'/><rect x='13.5' y='2' width='5' height='2.6' rx='1.1' fill='%23141413'/><circle cx='16' cy='18' r='12.5' fill='%23D97757' stroke='%23141413' stroke-width='1.6'/><circle cx='16' cy='18' r='9.6' fill='%23F9F9F7'/><line x1='16' y1='18' x2='16' y2='11.5' stroke='%23141413' stroke-width='1.6' stroke-linecap='round'/><line x1='16' y1='18' x2='21' y2='18' stroke='%23141413' stroke-width='1.6' stroke-linecap='round'/><circle cx='16' cy='18' r='1.3' fill='%23141413'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -848,6 +849,7 @@ var NEWSXCOL='#ffe600';
   var ty=w.ty||w.t||'grade', an=w.anc||'deposit';
   P.news.push({p:p,ll:[w.x,w.y],n:w.n,co:w.co,g:w.g,when:w.when,url:w.url,note:w.note,
     ty:ty, anc:an, unc:(w.unc==null?(ANCUNC[an]||0):+w.unc),
+    num:(w.num==null?null:+w.num),
     col:(ty==='grade'?'#00e64d':NEWSXCOL)}); });
 var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
 var NEWSX=P.news.filter(function(w){return w.ty!=='grade';});
@@ -1144,6 +1146,7 @@ function draw(){
        otherwise) - the new/not-new distinction still comes through the dash
        pattern and stroke width, unchanged. */
     P.ab.forEach(function(A){ if(!visb(A.b))return;
+      if(F.holder){var abh=shortHolder(A.o); if(abh!==F.holder&&abh.toUpperCase()!==F.holder.toUpperCase())return;}
       var col=activeColor(A.o);
       ctx.beginPath();poly(A.r,true);
       ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.30; ctx.fill(); ctx.globalAlpha=1;
@@ -1276,7 +1279,18 @@ function draw(){
           ctx.globalAlpha=al*.5;ctx.strokeStyle=w.col;ctx.lineWidth=1.1;ctx.setLineDash([3,3]);
           ctx.beginPath();ctx.arc(x,y,rr,0,6.2832);ctx.stroke();ctx.setLineDash([]);}
         ctx.globalAlpha=al;ctx.fillStyle=w.col;ctx.strokeStyle=surf;ctx.lineWidth=1.3;
-        newsGlyph(x,y,w.ty);ctx.fill();ctx.stroke();});});
+        newsGlyph(x,y,w.ty);ctx.fill();ctx.stroke();
+        if(w.num!=null){var lbl=String(w.num);
+          ctx.font='700 8.4px "IBM Plex Mono",ui-monospace,monospace';
+          ctx.textAlign='center';ctx.textBaseline='middle';
+          var bx=x+7.6,by=y-7.6,hw=Math.max(5.5,ctx.measureText(lbl).width/2+3),hh=5.5;
+          ctx.beginPath();
+          if(ctx.roundRect){ctx.roundRect(bx-hw,by-hh,hw*2,hh*2,hh);}
+          else{ctx.arc(bx,by,hh,0,6.2832);}
+          ctx.fillStyle=w.col;ctx.fill();
+          ctx.strokeStyle=surf;ctx.lineWidth=1.2;ctx.stroke();
+          ctx.fillStyle=surf;ctx.fillText(lbl,bx,by+0.4);}
+        });});
     ctx.restore();}
 
   if(MS.pts.length){ctx.save();ctx.strokeStyle=tok('--hot','#AE3A1C');ctx.lineWidth=1.8;
@@ -1329,6 +1343,7 @@ function pick(mx,my){
     if(inRing(t.r,mx,my))return{t:'ten',o:t};}}
   if(ON.tenure){for(var ja=0;ja<P.ab.length;ja++){var A=P.ab[ja];
     if(!visb(A.b))continue;
+    if(F.holder){var abh2=shortHolder(A.o); if(abh2!==F.holder&&abh2.toUpperCase()!==F.holder.toUpperCase())continue;}
     if(inRing(A.r,mx,my))return{t:'ab',o:A};}}
   
   if(ON.lapall){for(var jla=0;jla<P.lapreg.length;jla++){var LA=P.lapreg[jla];
