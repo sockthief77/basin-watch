@@ -35,15 +35,34 @@ def main() -> None:
     bundle = json.loads(BUNDLE.read_text(encoding="utf-8"))
     fresh = json.loads(MAP_BUNDLE.read_text(encoding="utf-8"))
 
-    changed = []
+    changed, skipped_empty = [], []
     for k, v in fresh.items():
         if k in SKIP_KEYS:
+            continue
+        # Guard added 2026-09-10 after a real incident: the "restricted" layer's
+        # source (iscmaps.isc.ca) failed DNS resolution on a GitHub Actions run,
+        # basin_layers.py logged the failure and moved on (by design - a bad
+        # query shouldn't crash the whole export), but this merge step still
+        # blindly replaced 113 good polygons with the resulting empty list and
+        # pushed it live. A network hiccup on any one source should never be
+        # able to erase data the site already has - if a list-valued key comes
+        # back empty from a run that had *any* existing data for it, skip that
+        # key entirely and keep what's already in data/bundle.json rather than
+        # overwriting good data with nothing. A genuinely empty layer (no real
+        # entries) also just gets skipped and stays whatever it already was -
+        # harmless, since "no source data available right now" and "the real
+        # answer is zero" look identical from here and the safe choice is the
+        # same either way: don't touch it.
+        if isinstance(v, list) and len(v) == 0 and len(bundle.get(k) or []) > 0:
+            skipped_empty.append(k)
             continue
         bundle[k] = v
         changed.append(k)
 
     BUNDLE.write_text(json.dumps(bundle, separators=(",", ":")), encoding="utf-8")
     print(f"merged {len(changed)} keys into {BUNDLE}: {', '.join(sorted(changed))}")
+    if skipped_empty:
+        print(f"SKIPPED (came back empty, kept existing data): {', '.join(sorted(skipped_empty))}")
 
 
 if __name__ == "__main__":
