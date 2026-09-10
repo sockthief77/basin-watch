@@ -32,8 +32,8 @@ def main() -> None:
     if not MAP_BUNDLE.exists():
         raise SystemExit(f"{MAP_BUNDLE} not found - did basin_layers.py run first?")
 
-    bundle = json.loads(BUNDLE.read_text(encoding="utf-8"))
-    fresh = json.loads(MAP_BUNDLE.read_text(encoding="utf-8"))
+    bundle = json.loads(BUNDLE.read_text(encoding="utf-8-sig"))
+    fresh = json.loads(MAP_BUNDLE.read_text(encoding="utf-8-sig"))
 
     changed, skipped_empty = [], []
     for k, v in fresh.items():
