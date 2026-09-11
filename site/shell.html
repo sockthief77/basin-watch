@@ -774,10 +774,11 @@ function daysUntil(iso){ if(!iso)return null; var d=new Date(iso+'T00:00:00Z');
 TENURE_F.forEach(function(t){ var pr=projRing(t.r,true);
   var dLeft=daysUntil(t.x);
   var lapseSoon=(dLeft!==null&&dLeft>=0&&dLeft<=7);
-  var dep=lapseSoon?depositFor(t.e,t.x,polyAreaHa(t.r)):null;
+  var lapseSoon2=(dLeft!==null&&dLeft>=8&&dLeft<=14);
+  var dep=(lapseSoon||lapseSoon2)?depositFor(t.e,t.x,polyAreaHa(t.r)):null;
   P.tenure.push({r:pr.r,b:pr.b,d:t.d,o:t.o,e:t.e,st:t.st,x:t.x,
     isNew:!!(t.d&&NEWIDS[t.d]), corp:!!(t.d&&NEWCORP[t.d]),
-    lapseSoon:lapseSoon, dep:dep}); });
+    lapseSoon:lapseSoon, lapseSoon2:lapseSoon2, dep:dep}); });
 CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
   P.claims.push({p:p,ll:[c.x,c.y],d:c.d,o:c.o,e:c.e,corp:!!c.corp,orphan:!(c.d&&TENIDS[c.d])}); });
 (B.lakes||[]).forEach(function(l){ if(!ringInBoxOK(l.r))return; P.lakes.push({r:projRing(l.r,false).r,n:l.n}); });
@@ -926,6 +927,7 @@ if(!hasData){minx=-400;maxx=400;miny=-400;maxy=400;}
 var LAYERS=[
  {k:'claim', label:'New Claims',    color:'#ffffff', get:function(){return P.claims.length;}},
  {k:'lapse', label:'Lapsing Within 7 Days',color:'#ff1493',get:function(){return P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;}).length;}},
+ {k:'lapse2',label:'Lapsing 8-14 Days',color:'#ff85c2',get:function(){return P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;}).length;}},
  {k:'news',  label:'Grade Releases',  color:'#00e64d', get:function(){return NEWSG.length;}},
  {k:'newsx', label:'Other News',      color:'#ffe600', get:function(){return NEWSX.length;}},
  {k:'tenure',label:'Tenure (SK+AB)', color:SLOT[0],  get:function(){return P.tenure.length+P.ab.length;}},
@@ -973,6 +975,9 @@ ON.mine=false;
    any other line layer and drawn on every load before a viewer asked for it. Toggle
    it on any time from the layer bar. */
 ON.cond=false;
+/* Lapsing 8-14 Days off by default, added 2026-09-11 - a secondary/wider-net layer,
+   same reasoning as the other off-by-default layers above. Toggle it on any time. */
+ON.lapse2=false;
 /* Major lakes, basin outline, highways and towns/settlements are permanent background context,
    2026-09-08 - no longer viewer-toggleable (see LAYERS above), always drawn. */
 ON.lake=true; ON.basin=true; ON.hw=true; ON.place=true;
@@ -1182,6 +1187,20 @@ function draw(){
         ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
         ctx.strokeStyle='rgba(255,20,147,.92)';
         /* Outline width reduced 30% from New Claims' equivalent stroke, 2026-09-08. */
+        ctx.lineWidth=Math.max(1.9,Math.min(3.8,view.s*.02205));ctx.stroke();});
+      ctx.restore();}}
+
+  /* Lapsing 8-14 Days - added 2026-09-11, second/wider tier alongside the 7-day layer
+     above. Same fill/outline treatment, lighter pink to read as "same family, one tier
+     further out" rather than an unrelated colour. */
+  if(ON.lapse2){var lapse2Ten=P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;});
+    if(lapse2Ten.length){ctx.save();
+      lapse2Ten.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+        if(!visb(t.b))return;
+        var col=HCOL[shortHolder(t.o)]||OTHER;
+        ctx.beginPath();poly(t.r,true);
+        ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
+        ctx.strokeStyle='rgba(255,133,194,.92)';
         ctx.lineWidth=Math.max(1.9,Math.min(3.8,view.s*.02205));ctx.stroke();});
       ctx.restore();}}
 
@@ -1435,9 +1454,10 @@ function showTip(h,mx,my){
   else if(h.t==='ten')s='<b>'+esc(o.d)+'</b>'+row('Holder',shortHolder(o.o))+
     (o.e?row('Registered',o.e):'')+(o.st?row('Status',o.st):'')+
     (o.x?row('Good standing until',o.x):'')+
-    (o.lapseSoon&&o.dep!=null?row('$ to hold','$'+Math.round(o.dep).toLocaleString()):'')+
+    ((o.lapseSoon||o.lapseSoon2)&&o.dep!=null?row('$ to hold','$'+Math.round(o.dep).toLocaleString()):'')+
     (o.isNew?'<div class="hint">registered this week</div>':
-      o.lapseSoon?'<div class="hint">lapses within 7 days - opens back up to staking around '+esc(o.x)+'</div>':'');
+      o.lapseSoon?'<div class="hint">lapses within 7 days - opens back up to staking around '+esc(o.x)+'</div>':
+      o.lapseSoon2?'<div class="hint">lapses within 8-14 days - opens back up to staking around '+esc(o.x)+'</div>':'');
   else if(h.t==='claim')s='<b>'+esc(o.d)+'</b>'+row('Holder',shortHolder(o.o))+
     (o.e?row('Registered',o.e):'')+'<div class="hint">registered this week</div>';
   else if(h.t==='ab')s='<b>'+esc(o.d)+'</b>'+row('Holder of record',shortHolder(o.o))+
