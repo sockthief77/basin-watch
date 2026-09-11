@@ -1,0 +1,44 @@
+name: Archive edition
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/edition.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: archive-edition
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build archive page for this edition
+        run: python scripts/build_archive.py
+
+      - name: Commit archive page if changed
+        run: |
+          if git diff --quiet -- archive/; then
+            echo "No archive changes to commit."
+            exit 0
+          fi
+          git config user.name "basin-watch-archive-bot"
+          git config user.email "actions@users.noreply.github.com"
+          EDITION_NUM=$(python -c "import json; print(json.load(open('data/edition.json'))['edition'])")
+          git add archive/
+          git commit -m "Archive edition ${EDITION_NUM}"
+          git push
