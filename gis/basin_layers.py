@@ -32,6 +32,16 @@ WIN  = (-112.0, 56.5, -102.0, 60.2)          # xmin, ymin, xmax, ymax
 # basin window", don't let a second copy drift from this one.
 ABWIN = (-114.5, 58.0, -109.0, 60.2)
 
+# Saskatchewan's western border with Alberta follows the 4th Meridian, 110d00'00" W,
+# essentially exactly straight for this stretch. ABWIN's own east edge (-109.0, above)
+# is deliberately a degree past this real border - fine for a bbox "is this feature
+# anywhere near the basin" pre-filter, but if an Alberta lake polygon that qualifies for
+# ABWIN is used un-clipped, its geometry can extend a full degree east of the real
+# border, directly overlapping Saskatchewan's own (differently-generalized) lake
+# geometry in that strip - added 2026-09-11 after Ezra screenshotted exactly that: a
+# visible seam/mismatch over Lake Athabasca where the two sources meet. See section 6c.
+BORDER_LON = -110.0
+
 
 def get(url, retries=3):
     last = None
@@ -375,6 +385,14 @@ def main():
         if not any(ABWIN[0] <= x <= ABWIN[2] and ABWIN[1] <= y <= ABWIN[3] for x, y in big):
             continue  # outside the Alberta basin window - see ABWIN definition at top
         best = max(rings, key=ring_area)
+        # Clip to strictly west of the real AB/SK border (see BORDER_LON above) - ABWIN's
+        # own east edge is a degree too generous for this, and an unclipped ring here was
+        # overlapping Saskatchewan's own lake geometry right at the border, producing a
+        # visible seam where the two differently-generalized sources met.
+        best = clip_ring(best, (-180.0, -90.0, BORDER_LON, 90.0))
+        if len(best) < 3:
+            continue  # this feature turned out to lie entirely on the Saskatchewan side -
+                       # SK's own layer 80 (queried above) already covers that ground
         lakes_ranked.append((ring_area(best), name_of(f.get("attributes", {})), best))
     lakes_ranked.sort(key=lambda t: -t[0])
     lb = []
