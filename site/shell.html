@@ -349,6 +349,17 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .footbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:520px){.footbtns{flex-wrap:wrap;justify-content:stretch}
   .footbtn{flex:1 1 auto;justify-content:center}}
+.footbtn.hastip{position:relative}
+.footbtnTip{position:absolute;bottom:calc(100% + 10px);right:0;
+  background:var(--surface);border:1px solid var(--faint);color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;font-weight:400;
+  font-size:13px;line-height:1.5;padding:12px 14px;border-radius:4px;
+  box-shadow:var(--shadow);width:250px;max-width:min(250px,70vw);text-align:left;
+  white-space:normal;opacity:0;visibility:hidden;transform:translateY(4px);
+  transition:opacity .15s,transform .15s;pointer-events:none;z-index:60}
+.footbtn.hastip:hover .footbtnTip,.footbtn.hastip:focus-visible .footbtnTip{
+  opacity:1;visibility:visible;transform:translateY(0)}
+@media (max-width:520px){.footbtnTip{right:auto;left:0}}
 
 .ovl{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;
   justify-content:center;z-index:80;padding:16px}
@@ -386,7 +397,7 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div class="mapbtns">
           <button type="button" id="mMeasure" class="mbtn" aria-pressed="false">Measure</button>
           <span id="measOut" class="measout"></span>
-          <button type="button" id="mReset" class="mbtn">Reset view</button>
+          <button type="button" id="mReset" class="mbtn">Reset View</button>
         </div>
       </div>
 
@@ -426,7 +437,7 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <div class="footbtns">
   <button type="button" id="nlOpenBtn" class="footbtn">Newsletter Sign-Up</button>
-  <a href="mailto:SockThief77@proton.me" class="footbtn" title="Issues? Recommendations? General Inquiries? Click here!">Contact Me</a>
+  <a href="mailto:SockThief77@proton.me" class="footbtn hastip" aria-label="Contact me: Issues? Recommendations? General Inquiries? Click Here!">Contact Me<span class="footbtnTip" role="tooltip">Issues? Recommendations? General Inquiries?<br>Click Here!</span></a>
 </div>
 
 <div class="ovl" id="nlOverlay" hidden>
@@ -968,7 +979,7 @@ ON.lake=true; ON.basin=true; ON.hw=true; ON.place=true;
 
 /* ---------- view ---------- */
 var view={s:1,tx:0,ty:0},W=0,H=0,DPR=1,home=null;
-var HOMEBOX=[-343.74,-384.28,259.80,72.69]; /* [minx,miny,maxx,maxy], fixed reset-view extent - Ezra's explicit ask 2026-09-09: the map's "Reset view" should always frame the same working bounding box basin_layers.py uses to filter data (UTM13N E100,000-700,000 / N6,250,000-6,700,000), not whatever the current bundle's actual data extent happens to be. Projected once offline via PROJ() at build time, not recomputed at runtime. */
+var HOMEBOX=[-298.27,-319.38,224.52,55.61]; /* [minx,miny,maxx,maxy], fixed reset-view extent - a hand-set framing, NOT the data extent and no longer basin_layers.py's working bounding box. Originally [-343.74,-384.28,259.80,72.69] (the UTM13N E100,000-700,000 / N6,250,000-6,700,000 filter box); reframed 2026-09-09 night to [-261.47,-310.64,199.69,38.50] on the live Claude artifacts (this shell.html copy was never updated for that step), then reframed again 2026-09-11 to this box - Ezra's explicit ask, "same centering, same zoom amount" as the standalone Basin Explorer screenshot he supplied. Box was back-solved from that screenshot so fit() (pad=26, min-of-both-axes) reproduces it: three town markers (Fond du Lac, Points North Landing, La Loche) were fitted to the LCC PROJ() to recover scale/translation, then bw=(W-52)/s, bh=(H-52)/s about the observed centre. Do not "restore" earlier values. */
 function fit(){var pad=26,bw=Math.max(1,HOMEBOX[2]-HOMEBOX[0]),bh=Math.max(1,HOMEBOX[3]-HOMEBOX[1]);
   view.s=Math.min((W-pad*2)/bw,(H-pad*2)/bh);
   view.tx=W/2-((HOMEBOX[0]+HOMEBOX[2])/2)*view.s; view.ty=H/2-((HOMEBOX[1]+HOMEBOX[3])/2)*view.s;
