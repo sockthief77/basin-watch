@@ -17,7 +17,7 @@
   --basinfill:rgba(224,136,103,.16); --basinline:rgba(224,136,103,.7); --hwline:rgba(255,255,255,.85);
   --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
 }
-/* Dark mode is the only mode for this page, always - Ezra's explicit request 2026-09-08.
+/* Dark mode is the only mode for this page, always - explicit requirement, set 2026-09-08.
    No light palette, no prefers-color-scheme branch, no [data-theme] override: whatever
    the viewer's own light/dark setting is, this page stays dark. */
 *{box-sizing:border-box}
@@ -484,7 +484,7 @@ function km(a,b){var d=Math.PI/180,R=6371,dLa=(b[1]-a[1])*d,dLo=(b[0]-a[0])*d;
    below needs the inverse (which E/N line passes through a given point), so
    it numerically inverts via bisection instead of a closed-form inverse -
    simpler to get right and plenty precise for a reference grid at this
-   scale. Replaces the lat/long graticule on Ezra's request, 2026-09-07
+   scale. Replaces the lat/long graticule per explicit request, 2026-09-07
    (night). ---------- */
 var UTM13=(function(){
   var a=6378137.0, f=1/298.257222101, e2=f*(2-f), ep2=e2/(1-e2), k0=0.9996, lon0=-105*Math.PI/180, d=Math.PI/180;
@@ -527,17 +527,17 @@ function bisect1d(fn,lo,hi,target){ var flo=fn(lo)-target,fhi=fn(hi)-target;
   return (lo+hi)/2; }
 
 /* ---------- data-level filters (2026-09-07) ----------
-   Two of Ezra's asks, both applied at ingest so every downstream consumer
+   Two explicit asks, both applied at ingest so every downstream consumer
    (ranking, colouring, drawing) sees the same filtered data - no separate
    "view crop" vs "data crop" split this time (an earlier version of the
-   6250N ask was deliberately kept view-only; Ezra confirmed afterward he
-   wants the data itself cut, so this replaces that).
+   6250N ask was deliberately kept view-only; confirmed afterward that
+   the data itself needed to be cut, so this replaces that).
 
    1. North cutoff: drop anything that never reaches UTM Zone 13N Northing
       6,250,000 m ("Athabasca basin only"). Ring/line features keep if ANY
       vertex is north of the line (partial overlap survives); point features
       test directly. The one exception is the basin outline polygon itself -
-      that's Ezra's supplied survey shapefile, never filtered or re-derived
+   that's the project's own supplied survey shapefile, never filtered or re-derived
       (see map-pipeline.md "Basin outline is fixed").
    2. SGO Mining Inc. exclusion: 316 of 7,461 tenure records on the current
       snapshot are 100%-SGO and were skewing the top-holder ranking, so its
@@ -548,7 +548,7 @@ function northOK(lon,lat){ return UTM13(lon,lat)[1]>=NORTH_CUT_M; } // keep only
 function ringNorthOK(r){ return (r||[]).some(function(p){ return northOK(p[0],p[1]); }); }
 function isSGO(o){ return /sgo mining/i.test(o||''); }
 /* Basemap bounding-box crop for Lakes, Roads (Highways) and Towns & Settlements
-   ONLY (2026-09-09, Ezra: cut off everything north of 6700N, south of 6200N,
+   ONLY (2026-09-09: cut off everything north of 6700N, south of 6200N,
    west of 100E and east of 700E - dead space was piling up on the map's
    margins from these three background layers reaching far outside the basin).
    Does NOT touch tenure, claims, deposits, conductors, footprints, heat grids
@@ -601,7 +601,7 @@ function isCorp(name){ var n=(name||'').toUpperCase();
   return n.indexOf('URANIUM')>=0||n.indexOf('RESOURCES')>=0||n.indexOf('GEM OIL')>=0||
          n.indexOf('CORP')>=0||n.indexOf('LTD')>=0||n.indexOf('INC')>=0; }
 var topCorpHolders=topHolders.filter(isCorp);
-/* 2026-09-07 (night): raised past the all-pairs 3-colour ceiling on Ezra's
+/* 2026-09-07 (night): raised past the all-pairs 3-colour ceiling per explicit
    explicit instruction, in three steps. (1) validated 8-hue family twice,
    solid for ranks 1-8 + hatched for ranks 9-16. (2) dropped the hatch, 16
    unique solid hues, evenly spaced. (3) final ask: EVERY named corporate
@@ -619,12 +619,12 @@ var topCorpHolders=topHolders.filter(isCorp);
    well-spread. Concretely: hue(0)=0°, hue(1)=137.5°, hue(2)=275°,
    hue(3)=52.5° - the first 4 ranks alone span the wheel almost evenly,
    long before rank 170 ever fills in a gap between them. Later, closely-
-   spaced ranks are the small holders Ezra explicitly said he doesn't need
+   spaced ranks are the small holders that explicitly don't need
    distinct - not the big ones. Not run through validate_palette.js, on
-   Ezra's explicit acceptance of that trade-off (see map-pipeline.md
+   Deliberate acceptance of that trade-off (see map-pipeline.md
    "Holder colour rule"). Ranking is over CORPORATE holders only
    (`topCorpHolders`) - a named individual never gets a slot here, however
-   much ground they hold, on Ezra's separate explicit instruction: an
+   much ground they hold, per a separate explicit instruction: an
    individual staker isn't the entity whose activity matters until the
    claim is registered to an actual company, same principle as the
    new-claims layer below. */
@@ -699,7 +699,7 @@ function holderColor(o){ var h=shortHolder(o);
 
 /* ---------- new-claim colours: every CORPORATE staker this week gets its own
    colour from the 8-hue family (not just the top 3) - named individuals stay
-   grey always, on Ezra's explicit instruction (2026-09-07): they're agents/
+   grey always, per explicit instruction (2026-09-07): they're agents/
    stakers, not the entity whose activity matters here, and lumping them in
    with the ranking buried the actual companies. `corp` already comes through
    the data pipeline (basin_layers.py flags URANIUM/RESOURCES/CORP/LTD/INC/
@@ -727,7 +727,7 @@ function newClaimColor(o,corp){ var h=shortHolder(o);
      NEWHCOL is only this week's top-8-by-new-claim-count palette (FAM8, reused
      every week for whichever 8 companies happen to lead), so the same company
      could get a different colour here than on the persistent tenure fill right
-     next to it - exactly the mismatch Ezra reported ("New Claim toggle isn't
+     next to it - exactly the mismatch that was reported ("New Claim toggle isn't
      colour-coding the same as Sask Tenure"). Same root cause and same fix as the
      Lapsing-Within-7-Days layer's 2026-09-08 fix (see that block above): key off
      HCOL so a company reads as one consistent colour across every layer. NEWHCOL
@@ -745,8 +745,8 @@ function projRing(r,track){var o=[],bx0=1e18,by0=1e18,bx1=-1e18,by1=-1e18;
     if(p[0]<bx0)bx0=p[0]; if(p[0]>bx1)bx1=p[0]; if(p[1]<by0)by0=p[1]; if(p[1]>by1)by1=p[1];}
   return {r:o,b:[bx0,by0,bx1,by1]};}
 /* Deposit footprints are true-to-scale orebody outlines - often only a few
-   hundred metres across, effectively invisible at whole-basin zoom. Ezra
-   asked for a buffer around them (2026-09-07) so they read as a small blob
+   hundred metres across, effectively invisible at whole-basin zoom. A buffer
+   was requested around them (2026-09-07) so they read as a small blob
    rather than vanishing. Real polygon offsetting (proper edge-normal buffer)
    is overkill for this - these are small, roughly-convex shapes, so this
    pushes every vertex outward from the ring's own centroid by a fixed
@@ -758,10 +758,10 @@ function bufferRing(r,bufKm){ if(!r.length)return r;
   return r.map(function(p){ var dx=p[0]-cx,dy=p[1]-cy,dd=Math.sqrt(dx*dx+dy*dy);
     if(dd<1e-9)return [p[0],p[1]];
     var f=(dd+bufKm)/dd; return [cx+dx*f,cy+dy*f]; }); }
-var FOOT_BUFFER_KM=0; /* reverted to true-to-scale per Ezra's request - buffer was too large */
+var FOOT_BUFFER_KM=0; /* reverted to true-to-scale per explicit request - buffer was too large */
 
 /* Basin outline is the one layer exempt from the 6250N cut below - it's
-   Ezra's supplied survey shapefile, never filtered or re-derived (see
+   the project's own supplied survey shapefile, never filtered or re-derived (see
    map-pipeline.md "Basin outline is fixed"). */
 ((B.basin&&B.basin.rings)||[]).forEach(function(r){ P.basin.push(projRing(r,true).r); });
 var TENIDS={}; TENURE_F.forEach(function(t){ if(t.d)TENIDS[t.d]=true; });
@@ -796,25 +796,25 @@ CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
   /* A parsed grade above 100% U3O8 is chemically impossible (100% is the ceiling) - it's
      the narrative-text regex catching a tonnage/multiplier/other number, not a real grade.
      Treat it as unparsed rather than let a handful of these blow out the "Min grade"
-     slider's whole scale (2026-09-09, Ezra: "SMDI Grade slider doesn't work"). */
+     slider's whole scale (2026-09-09: "SMDI Grade slider doesn't work"). */
   if(pct!=null&&pct>100){pct=null;ppm=null;}
   P.smdi.push({p:p,ll:[d.x,d.y],n:d.n,s:d.s,id:d.id,pct:pct,ppm:ppm,assay:d.assay}); });
 (B.mines||[]).forEach(function(m){ if(!northOK(m.x,m.y))return; var p=PROJ(m.x,m.y); ext(p);
   P.mines.push({p:p,ll:[m.x,m.y],n:m.n,u:m.u,ml:m.ml,st:m.st}); });
 (B.places||[]).forEach(function(s){ if(!inBoxOK(s.x,s.y))return; var p=PROJ(s.x,s.y); ext(p);
   P.places.push({p:p,ll:[s.x,s.y],n:s.n,k:s.k}); });
-/* Manual additions (2026-09-07, Ezra's request) - not in the underlying
+/* Manual additions (2026-09-07, explicit request) - not in the underlying
    Places feature service pull, or filtered out of it; added here directly
    since they're static reference points, not something worth a
    basin_layers.py round-trip for three towns. Labelled 'Town' so they
    always show a name label regardless of zoom (see the place-label draw
-   code below). Ezra asked for Pinehouse on the map (2026-09-08). It sits about
+   code below). Pinehouse was requested on the map (2026-09-08). It sits about
    100 km south of the 6250N data cut, so it is pushed to P.places regardless of
    the cut - but ext() is skipped for anything south of the line, so the default
    framing still stops at 6250N as asked and the map does not stretch south to
    reach it. Pan south of the basin to see it. Fond du Lac added 2026-09-08 -
    coordinates from its Wikipedia geo entry (59.3498, -107.0138), not yet
-   confirmed by Ezra's own UTM per his stated preference (see "Coordinates:
+   confirmed by the project's own UTM per its stated coordinate preference (see "Coordinates:
    UTM only" in map-pipeline.md); flag it if it turns out wrong the way Points
    North Landing's first guess did. Well north of the 6250N cut, so it renders
    in the default view like Points North Landing and La Loche. */
@@ -851,7 +851,7 @@ CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
    municipalities) have their own public ArcGIS layers and are pulled by
    basin_layers.py section 12; Crown reserves and manual restrictions have no known
    public layer and are not included - see claude/map-pipeline.md. Empty (P.restricted
-   stays []) until Ezra reruns basin_layers.py with the new section - the layer bar
+   stays []) until basin_layers.py is rerun with the new section - the layer bar
    shows 0 and the toggle is inert until then, same as any other not-yet-populated
    layer (e.g. Geochem Heat before its first run). Not extent-tracked (projRing's
    second arg is false) - like Alberta Tenure, this shouldn't stretch the default
@@ -891,9 +891,9 @@ var ANCLAB={collar:'surveyed collar',deposit:'offset from a mapped deposit',
    everything else gets a ring big enough to stop the star being read as a position it
    isn't. */
 var ANCUNC={collar:0,deposit:1.5,claims:6,figure:2};
-/* Every non-grade waypoint is one light jasper blue, on Ezra's instruction 2026-09-08 -
+/* Every non-grade waypoint is one light jasper blue, per explicit instruction 2026-09-08 -
    NOT the company's own holder colour. A first pass filled these from HCOL so a waypoint
-   matched the ground under it; he asked for a single colour instead. Keep it that way: the
+   matched the ground under it; a single colour was requested instead. Keep it that way: the
    waypoint layer reads as one thing sitting on top of the map, and the company is named on
    hover. Grade stars stay bright green. */
 var NEWSXCOL='#ffe600';
@@ -905,7 +905,7 @@ var NEWSXCOL='#ffe600';
     col:(ty==='grade'?'#00e64d':NEWSXCOL)}); });
 var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
 var NEWSX=P.news.filter(function(w){return w.ty!=='grade';});
-/* One star for every waypoint, whatever its type - Ezra 2026-09-08. A per-type glyph set
+/* One star for every waypoint, whatever its type - per explicit instruction 2026-09-08. A per-type glyph set
    (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
    by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
    by shape. Don't reintroduce shape encoding without asking. */
@@ -921,7 +921,7 @@ var SMDI_MAXPPM=P.smdi.reduce(function(m,d){return Math.max(m,d.ppm||0);},1);
 var hasData=P.tenure.length||P.claims.length||P.deps.length||P.conds.length||P.heat.length||P.news.length;
 if(!hasData){minx=-400;maxx=400;miny=-400;maxy=400;}
 
-/* Order and capitalization set by Ezra 2026-09-08. Major lakes, Basin outline, Highways and
+/* Order and capitalization set 2026-09-08. Major lakes, Basin outline, Highways and
    Towns & settlements were dropped from this list the same day - they're permanent basemap
    context now (see the always-on block below ON's definition), not viewer-toggleable. */
 var LAYERS=[
@@ -942,7 +942,7 @@ var LAYERS=[
  {k:'geochem',label:'Lake & Soil Heat', color:'#2dd4bf', get:function(){return P.geochem.length;}}
 ];
 /* Heat-style layers (density/interpolated surfaces rather than discrete features)
-   split into their own box below the main toggles, 2026-09-09 night, per Ezra's
+   split into their own box below the main toggles, 2026-09-09 night, per explicit
    request. HEATKEYS controls both the split and the box's internal order. */
 var HEATKEYS=['smdi','heat','geochem'];
 var ON={}; LAYERS.forEach(function(l){ ON[l.k]=true; });
@@ -959,7 +959,7 @@ ON.geochem=false;
 ON.restricted=false;
 /* Lapsed Claims off by default, added 2026-09-09 - the full lapsed-disposition register
    (hundreds of records), distinct from Recently Lapsed (which only shows new-since-
-   last-export deltas). Ezra asked for this as a separate toggle after finding a claim
+   last-export deltas). A separate toggle was requested for this after finding a claim
    MARS still marks lapsed (MC00018892) invisible on the map because it lapsed before
    the Recently Lapsed baseline snapshot. Toggle it on any time from the layer bar. */
 ON.lapall=false;
@@ -967,8 +967,8 @@ ON.lapall=false;
    basin_layers.py's scrape has run, denser than any other point layer. Toggle it on
    any time from the layer bar. */
 ON.smdi=false;
-/* Mines & Mills off by default, added 2026-09-09 - a background reference layer Ezra
-   toggles on when he wants it, same reasoning as the other off-by-default layers above.
+/* Mines & Mills off by default, added 2026-09-09 - a background reference layer
+   toggled on as needed, same reasoning as the other off-by-default layers above.
    Toggle it on any time from the layer bar. */
 ON.mine=false;
 /* EM Conductors off by default, added 2026-09-09 - ~28,462 polylines, denser than
@@ -984,7 +984,7 @@ ON.lake=true; ON.basin=true; ON.hw=true; ON.place=true;
 
 /* ---------- view ---------- */
 var view={s:1,tx:0,ty:0},W=0,H=0,DPR=1,home=null;
-var HOMEBOX=[-298.27,-319.38,224.52,55.61]; /* [minx,miny,maxx,maxy], fixed reset-view extent - a hand-set framing, NOT the data extent and no longer basin_layers.py's working bounding box. Originally [-343.74,-384.28,259.80,72.69] (the UTM13N E100,000-700,000 / N6,250,000-6,700,000 filter box); reframed 2026-09-09 night to [-261.47,-310.64,199.69,38.50] on the live Claude artifacts (this shell.html copy was never updated for that step), then reframed again 2026-09-11 to this box - Ezra's explicit ask, "same centering, same zoom amount" as the standalone Basin Explorer screenshot he supplied. Box was back-solved from that screenshot so fit() (pad=26, min-of-both-axes) reproduces it: three town markers (Fond du Lac, Points North Landing, La Loche) were fitted to the LCC PROJ() to recover scale/translation, then bw=(W-52)/s, bh=(H-52)/s about the observed centre. Do not "restore" earlier values. */
+var HOMEBOX=[-298.27,-319.38,224.52,55.61]; /* [minx,miny,maxx,maxy], fixed reset-view extent - a hand-set framing, NOT the data extent and no longer basin_layers.py's working bounding box. Originally [-343.74,-384.28,259.80,72.69] (the UTM13N E100,000-700,000 / N6,250,000-6,700,000 filter box); reframed 2026-09-09 night to [-261.47,-310.64,199.69,38.50] on the live Claude artifacts (this shell.html copy was never updated for that step), then reframed again 2026-09-11 to this box - an explicit ask, "same centering, same zoom amount" as the standalone Basin Explorer screenshot supplied for reference. Box was back-solved from that screenshot so fit() (pad=26, min-of-both-axes) reproduces it: three town markers (Fond du Lac, Points North Landing, La Loche) were fitted to the LCC PROJ() to recover scale/translation, then bw=(W-52)/s, bh=(H-52)/s about the observed centre. Do not "restore" earlier values. */
 function fit(){var pad=26,bw=Math.max(1,HOMEBOX[2]-HOMEBOX[0]),bh=Math.max(1,HOMEBOX[3]-HOMEBOX[1]);
   view.s=Math.min((W-pad*2)/bw,(H-pad*2)/bh);
   view.tx=W/2-((HOMEBOX[0]+HOMEBOX[2])/2)*view.s; view.ty=H/2-((HOMEBOX[1]+HOMEBOX[3])/2)*view.s;
@@ -999,7 +999,7 @@ function resize(){DPR=Math.min(2,window.devicePixelRatio||1);
 
 var F={holder:'',status:'',cyear:'',ctype:'',cps:0,uppm:0,newOnly:false,fav:{}};
 /* ---------- Favourites (replaced the three Spotlight pickers, 2026-09-08) ----
-   Ezra asked for a searchable checkbox list that can put ANY number of operators
+   A searchable checkbox list was requested that can put ANY number of operators
    on the map at once, rather than three dropdown slots. Each favourite keeps the
    colour it already has everywhere else (HCOL, the per-holder golden-angle hue),
    so a company looks the same whether or not it is favourited - only the
@@ -1131,7 +1131,7 @@ function draw(){
   if(ON.tenure&&P.tenure.length){ctx.save();
     /* Isolate-holder mode (F.holder set) gets its own bolder treatment - the
        default SLOT[0] blue at the normal .30 fill / 1.6-3.4px stroke read too
-       close to the lakes layer's blue fill (Ezra's report, 2026-09-08). Bumped
+       close to the lakes layer's blue fill (reported 2026-09-08). Bumped
        to a thicker stroke (2.2-4.8px) and a 30%-more-opaque fill (.30 -> .39)
        whenever a holder is actually isolated. */
     var isoMode=!!F.holder;
@@ -1281,7 +1281,7 @@ function draw(){
        viewer zooms in, added 2026-09-09 - at reset (view.s===home.s) the ramp factor is 1,
        giving the reduced size below; zooming in raises view.s and the radius grows linearly
        until it reaches the original fixed size (rBase), where it stays capped exactly as
-       before. Ezra's ask: smaller at reset view, unchanged zoomed-in behavior. */
+       before. Explicit ask: smaller at reset view, unchanged zoomed-in behavior. */
     var depZoom=home?Math.max(1,view.s/home.s):1;
     P.deps.forEach(function(d){ if(F.status&&d.s!==F.status)return;
       var x=sx(d.p),y=sy(d.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
@@ -1334,7 +1334,7 @@ function draw(){
     var pa9=PROJ(-106,58),pb9=PROJ(-105,58);
     var pxkm=Math.abs(sx(pb9)-sx(pa9))/km([-106,58],[-105,58]);
     /* Other News stars are painted FIRST so the Grade stars always land on top of them -
-       Ezra, 2026-09-09: reversed from the prior rule (grade stars used to be painted first
+       2026-09-09: reversed from the prior rule (grade stars used to be painted first
        so Other News stayed on top). Several waypoints legitimately share a position
        (Paladin's Atlas grade result and its Birch Narrows agreement are ~3 km apart, one
        marker-width at basin zoom), so this is a real collision, not a hypothetical. Keep
@@ -1387,7 +1387,7 @@ function inRing(r,x,y){var c=false;
     if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi))c=!c;}
   return c;}
 function pick(mx,my){
-  /* Hit radius widened 13px->20px, 2026-09-09 (fourth pass): Ezra's diagnostic showed
+  /* Hit radius widened 13px->20px, 2026-09-09 (fourth pass): field diagnostic showed
      precise, zero-movement clicks aimed at Grade Release/Other News/U Deposit markers
      landing on the tenure polygon underneath instead ("hit type=ten") or missing
      entirely ("pick()=NO HIT") - not a click-vs-drag bug at all, a hit-test radius too
@@ -1436,7 +1436,7 @@ function pick(mx,my){
 
 function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 function row(k,v){return '<div class="row"><span>'+esc(k)+'</span><span>'+esc(v)+'</span></div>';}
-/* All on-map coordinate readouts are UTM Zone 13N (Ezra's request, 2026-09-07)
+/* All on-map coordinate readouts are UTM Zone 13N (explicit request, 2026-09-07)
    - matches the grid ticks and the basin outline's own source CRS, not
    lat/long. */
 function utmStr(lon,lat){ var u=UTM13(lon,lat);
@@ -1502,7 +1502,7 @@ function invert(mx,my){var lon=-106,lat=58;
     if(Math.abs(rx)<.01&&Math.abs(ry)<.01)break;}
   return [lon,lat];}
 /* Click-to-open FIX 2026-09-09 (third pass): grab-a-marker suppresses panning.
-   The 3px then 8px movement thresholds both failed in the field - Ezra's diagnostic
+   The 3px then 8px movement thresholds both failed in the field - a diagnostic
    showed real pointerdown-to-pointerup deltas of 100-130px on a plain single click,
    far past ordinary jitter. Rather than guess a bigger number, this drops movement
    thresholds entirely for anything that starts on a clickable feature: if pick() at
@@ -1532,7 +1532,7 @@ function endDrag(){if(drag){drag=null;cv.classList.remove('drag');}}
 /* ROOT CAUSE FOUND 2026-09-09 (sixth pass): a raw-event probe (since removed) caught
    it - pointerup was throwing "A parameter or an operation is not supported by the
    underlying object". That's a NotSupportedError DOMException thrown BY
-   window.open() ITSELF, synchronously, on Ezra's setup. This page runs inside a
+   window.open() ITSELF, synchronously, on the production setup. This page runs inside a
    sandboxed iframe (the Artifacts viewer on claude.ai) - script-invoked
    window.open() from inside that sandbox throws in Firefox-family browsers
    (Mullvad Browser is Tor-Browser/Firefox-based) instead of just returning null
@@ -1589,13 +1589,13 @@ var bar=document.getElementById('layerbar');
 var heatBar=document.getElementById('heatbar');
 /* Per-layer sliders for the heat-style layers (SMDI grade / Boulder peak / U ppm)
    now live attached directly under their own toggle in the layer bar, instead of
-   a separate "Legend sliders" panel on the right - Ezra, 2026-09-09 night. Each
+       a separate "Legend sliders" panel on the right - 2026-09-09 night. Each
    slider is only interactive while its layer is switched on: SLIDER_SPECS supplies
    the range/format/state-setter per layer key, mkLyrToggle wires enable/disable to
    the same ON[l.k] the checkbox drives, and switching a layer off also resets its
    filter value to 0 (no filtering) so a hidden, disabled slider can never keep
    silently filtering a layer nobody can see is filtered. */
-/* Sliders switched from linear to log-scale, 2026-09-09 (Ezra: SMDI grade slider "doesn't
+/* Sliders switched from linear to log-scale, 2026-09-09 (SMDI grade slider "doesn't
    work"; Boulder Heat / Lake & Soil Heat sliders "much too aggressive... maybe log scaling
    is more appropriate"). All three datasets are extremely right-skewed - the vast majority
    of records/grid-cells sit under 10% of the layer's max value, so a *linear* 0..max slider
@@ -1661,8 +1661,8 @@ function mkLyrToggle(l,container){var n=l.get(),checked=!!(n&&ON[l.k]);
 LAYERS.forEach(function(l){mkLyrToggle(l,HEATKEYS.indexOf(l.k)>=0?heatBar:bar);});
 
 /* Filters ctrlsec (an "Isolate holder" <select> duplicating what Favourites and
-   the This Week's Stakers key already do) was removed 2026-09-09 - Ezra's call,
-   it wasn't doing anything the other controls didn't. isolateSel stays defined
+   the This Week's Stakers key already do) was removed 2026-09-09 - it wasn't
+   doing anything the other controls didn't. isolateSel stays defined
    as a permanent no-op (null) so the two guarded `if(isolateSel)` call sites
    below don't need touching. */
 var isolateSel=null;
