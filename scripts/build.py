@@ -18,17 +18,29 @@ Basin Watch project for the history. It's populated by
 scripts/merge_edition.py, run by .github/workflows/publish-brief.yml shortly
 after the daily brief skill publishes its Artifact pages each morning.
 
+Also copies archive/ (the standalone edition-archive pages built by
+scripts/build_archive.py + .github/workflows/archive-edition.yml) into
+dist/archive/ - added 2026-09-11. Cloudflare Pages serves only dist/
+(wrangler.toml's [assets] directory), so without this step the archive
+workflow could commit archive/edition<NNN>/index.html to the repo all day
+and basinwatch.ca/archive/... would still 404, because nothing ever put a
+copy of it where Cloudflare actually looks. This was the root cause of the
+archive links not working after the archive-edition.yml bug itself was
+fixed: two separate problems, both had to be fixed for the feature to work
+end to end.
+
 Usage:
     python3 scripts/build.py
 
 Verifies, for the main page, before writing:
   - exactly two <script> tags survive
-  - the substituted bundle re-parses as JSON (via raw_decode, not a greedy regex -
-    see the project's map-pipeline.md for why a naive regex over-matches on a
-    file this size)
+  - the substituted bundle re-parses as JSON (via raw_decode, not a greedy
+    regex - see the project's map-pipeline.md for why a naive regex over-
+    matches on a file this size)
   - both edition placeholders were found exactly once and got substituted
 """
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -36,6 +48,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 DATA = ROOT / "data"
 DIST = ROOT / "dist"
+ARCHIVE = ROOT / "archive"
 
 BUNDLE_PLACEHOLDER = "/*__BUNDLE__*/"
 BUNDLE_PREFIX = "<script>window.BASIN_BUNDLE="
@@ -110,6 +123,20 @@ def main() -> None:
     explorer_html = render(SITE / "explorer-shell.html", bundle_json, None)
     (DIST / "explorer" / "index.html").write_text(explorer_html, encoding="utf-8")
     print(f"wrote dist/explorer/index.html ({len(explorer_html):,} bytes)")
+
+    # Mirror archive/ into dist/archive/ so Cloudflare Pages (which serves only
+    # dist/, per wrangler.toml) actually has the standalone edition-archive
+    # pages to serve. archive/ is optional - a repo with no archived editions
+    # yet shouldn't fail the build.
+    if ARCHIVE.is_dir():
+        dist_archive = DIST / "archive"
+        if dist_archive.exists():
+            shutil.rmtree(dist_archive)
+        shutil.copytree(ARCHIVE, dist_archive)
+        n_pages = sum(1 for _ in dist_archive.glob("edition*/index.html"))
+        print(f"copied archive/ -> dist/archive/ ({n_pages} edition page(s))")
+    else:
+        print("no archive/ directory yet - skipping dist/archive/ copy")
 
     # Cloudflare's static asset server doesn't reliably declare charset=utf-8
     # on its own, and without it browsers fall back to guessing the encoding -
