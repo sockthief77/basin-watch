@@ -1767,13 +1767,6 @@ renderFav();
 var empty=document.getElementById('mapempty');
 if(!hasData&&empty){empty.hidden=false;
   empty.textContent='Map layers not loaded yet. Run basin_layers.py on your machine to build the data bundle.';}
-window.addEventListener('resize',resize);
-resize();
-})();
-</script>
-<script>
-(function(){
-"use strict";
 var nlOpenBtn=document.getElementById('nlOpenBtn');
 var nlOverlay=document.getElementById('nlOverlay');
 var nlCancelBtn=document.getElementById('nlCancelBtn');
@@ -1784,7 +1777,8 @@ if(nlOpenBtn) nlOpenBtn.addEventListener('click', nlOpen);
 if(nlCancelBtn) nlCancelBtn.addEventListener('click', nlClose);
 if(nlOverlay) nlOverlay.addEventListener('click', function(e){ if(e.target===nlOverlay) nlClose(); });
 document.addEventListener('keydown', function(e){ if(e.key==='Escape' && nlOverlay && !nlOverlay.hidden) nlClose(); });
+
+window.addEventListener('resize',resize);
+resize();
 })();
 </script>
-
-
