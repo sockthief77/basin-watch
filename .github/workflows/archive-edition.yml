@@ -32,13 +32,13 @@ jobs:
 
       - name: Commit archive page if changed
         run: |
-          if git diff --quiet -- archive/; then
+          git add archive/
+          if git diff --cached --quiet; then
             echo "No archive changes to commit."
             exit 0
           fi
           git config user.name "basin-watch-archive-bot"
           git config user.email "actions@users.noreply.github.com"
           EDITION_NUM=$(python -c "import json; print(json.load(open('data/edition.json'))['edition'])")
-          git add archive/
           git commit -m "Archive edition ${EDITION_NUM}"
           git push
