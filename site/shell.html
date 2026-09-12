@@ -413,7 +413,7 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <div class="mapctrl">
 
       <details class="ctrlsec" open>
-        <summary class="ctrlhd">This week's stakers</summary>
+        <summary class="ctrlhd">Recent Stakers</summary>
         <div class="legend" id="newclaimkey" style="margin-top:0;padding-top:8px;border-top:none"></div>
       </details>
 
@@ -588,11 +588,77 @@ var FAM8=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7',
    whitespace runs to one space fixes this for every holder, not just this
    one instance. */
 function shortHolder(o){ return (o||'').replace(/:\s*[\d.]+%/g,'').replace(/;\s*$/,'').replace(/\s+/g,' ').trim(); }
+/* ---------- JV ownership split (added 2026-09-11) ----------
+   MARS's own OWNERS field already carries a joint venture's exact percentage
+   split verbatim - confirmed directly against the live registry, e.g.
+   "ISOENERGY LTD.: 50.000%;  PUREPOINT URANIUM GROUP INC.: 50.000%" for a
+   Dorado JV disposition. Everything downstream (map colour, Top 10 hectares,
+   tooltip) is driven from this parse, not a hand-maintained JV table - it
+   stays correct automatically as ownership changes and needs no new entry
+   when a JV forms or is restructured. A plain single-holder record (the
+   overwhelming majority) parses to one owner at 100%, so this changes
+   nothing for non-JV tenure. Alberta's registry is the one exception - it
+   names only a single "designated representative" per agreement (see
+   watchlist-and-sources.md's Rea/Orano note), so an Alberta record always
+   parses as one 100% owner here even where the real economics are split;
+   that's a known limitation, not a bug in this parse. */
+function parseOwners(o){
+  var s=String(o||'');
+  var parts=s.split(';').map(function(x){return x.trim();}).filter(Boolean);
+  if(!parts.length)return [{name:'-',pct:100}];
+  var owners=parts.map(function(p){
+    var m=p.match(/^(.*?):\s*([\d.]+)\s*%\s*$/);
+    return m?{name:m[1].replace(/\s+/g,' ').trim(),pct:parseFloat(m[2])}:{name:p.replace(/\s+/g,' ').trim(),pct:null};
+  });
+  var missing=owners.filter(function(w){return w.pct==null;});
+  if(missing.length){
+    var known=owners.reduce(function(s,w){return s+(w.pct||0);},0);
+    var each=Math.max(0,100-known)/missing.length;
+    missing.forEach(function(w){w.pct=each;});
+  }
+  return owners;
+}
+/* Single dominant name for VISUAL identity (map colour, isolate-holder
+   matching, Favourites, legends) - the largest stated interest. This is a
+   deliberate simplification: a JV polygon gets ONE colour (its largest
+   partner's), flagged as shared ground by a hatch overlay in the draw loop
+   below, rather than trying to paint every partner's share - see
+   map-pipeline.md for why a multi-wedge/diagonal-split treatment was
+   rejected (doesn't scale past two parties without looking busy). Known
+   limitation: isolating a MINORITY JV partner (e.g. Cameco's 39.5% of Hook
+   Lake) will not highlight that ground, since primaryOwner() picks the
+   plurality holder only - accepted trade-off, not fixed here. Top 10
+   hectare totals (below) are NOT subject to this simplification - those
+   split every owner's true percentage correctly regardless of rank. */
+function primaryOwner(o){
+  var owners=parseOwners(o);
+  owners.sort(function(a,b){return b.pct-a.pct;});
+  return owners[0].name;
+}
+function isJVOwners(o){ return parseOwners(o).length>1; }
 var tenureCount={};   // keyed by NORMALIZED holder name so a joint-venture's
-TENURE_F.forEach(function(t){ var o=shortHolder(t.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });  // ownership-% suffix doesn't fragment its count
+TENURE_F.forEach(function(t){ var o=primaryOwner(t.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });  // ownership-% suffix doesn't fragment its count
 if(!Object.keys(tenureCount).length)   // before the tenure pull, fall back to the week's claims
-  CLAIMS_F.forEach(function(c){ var o=shortHolder(c.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });
+  CLAIMS_F.forEach(function(c){ var o=primaryOwner(c.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });
 var topHolders=Object.keys(tenureCount).sort(function(a,b){return tenureCount[b]-tenureCount[a];});
+/* ---------- Top 10 hectares, split by true ownership % (added 2026-09-11) ----
+   tenureCount above is a PARCEL COUNT and stays that way - it still drives the
+   Favourites list and legend badges exactly as before. holderHa is a separate,
+   AREA-based total used only by the Top 10 Holders list: every tenure record's
+   hectares (polyAreaHa) are divided across every real owner named in OWNERS by
+   their stated percentage - a JV parcel therefore contributes a fraction of its
+   area to EACH partner's total, not the whole area to whichever one happens to
+   be primaryOwner(). This is what makes Top 10 "financial ownership" rather
+   than "who the polygon is drawn in the colour of". Single-owner records (the
+   majority) are unaffected - 100% of their area goes to their one owner, same
+   as counting them once did. */
+var holderHa={};
+TENURE_F.forEach(function(t){
+  var ha=polyAreaHa(t.r); if(!ha)return;
+  parseOwners(t.o).forEach(function(w){
+    var nm=w.name||'-'; holderHa[nm]=(holderHa[nm]||0)+ha*(w.pct/100);
+  });
+});
 /* same corp/individual test the data pipeline uses for new-claim's `corp`
    flag (basin_layers.py: URANIUM/RESOURCES/GEM OIL/CORP/LTD/INC in the
    holder string), reimplemented here so it applies to EVERY holder, not
@@ -601,7 +667,7 @@ var topHolders=Object.keys(tenureCount).sort(function(a,b){return tenureCount[b]
 function isCorp(name){ var n=(name||'').toUpperCase();
   return n.indexOf('URANIUM')>=0||n.indexOf('RESOURCES')>=0||n.indexOf('GEM OIL')>=0||
          n.indexOf('CORP')>=0||n.indexOf('LTD')>=0||n.indexOf('INC')>=0; }
-var topCorpHolders=topHolders.filter(isCorp);
+var topCorpHolders=topHolders.filter(isCorp).sort(function(a,b){return (holderHa[b]||0)-(holderHa[a]||0);});
 /* 2026-09-07 (night): raised past the all-pairs 3-colour ceiling per explicit
    explicit instruction, in three steps. (1) validated 8-hue family twice,
    solid for ranks 1-8 + hatched for ranks 9-16. (2) dropped the hatch, 16
@@ -694,7 +760,7 @@ Object.keys(HCOL).forEach(function(h){ HCOL_UP[h.toUpperCase()]=HCOL[h]; });
    Alberta claim (all-caps holder string) resolves to the same colour as the Sask
    listing for the same company. */
 function hcolFor(h){ return HCOL[h]||HCOL_UP[h.toUpperCase()]||null; }
-function holderColor(o){ var h=shortHolder(o);
+function holderColor(o){ var h=primaryOwner(o);
   if(F.holder) return (h===F.holder||h.toUpperCase()===F.holder.toUpperCase())?(hcolFor(h)||SLOT[0]):OTHER;
   return hcolFor(h)||OTHER; }
 
@@ -715,11 +781,11 @@ function holderColor(o){ var h=shortHolder(o);
    3 companies/colours as the existing-tenure layer), so a spotlit company
    still reads consistently across old + new claims. ---------- */
 var newCorpCount={};
-CLAIMS_F.forEach(function(c){ if(!c.corp)return; var o=shortHolder(c.o)||'-'; newCorpCount[o]=(newCorpCount[o]||0)+1; });
+CLAIMS_F.forEach(function(c){ if(!c.corp)return; var o=primaryOwner(c.o)||'-'; newCorpCount[o]=(newCorpCount[o]||0)+1; });
 var newTopHolders=Object.keys(newCorpCount).sort(function(a,b){return newCorpCount[b]-newCorpCount[a];});
 var NEWHCOL={}; newTopHolders.slice(0,8).forEach(function(h,i){ NEWHCOL[h]=FAM8[i]; });
 var newCount=newCorpCount; // kept for the legend/count lookups below
-function newClaimColor(o,corp){ var h=shortHolder(o);
+function newClaimColor(o,corp){ var h=primaryOwner(o);
   if(FAVN) return F.fav[h]?(HCOL[h]||NEWHCOL[h]||SLOT[0]):FAVDIM;
   if(F.holder) return h===F.holder?(HCOL[h]||NEWHCOL[h]||SLOT[0]):OTHER;
   if(!corp) return OTHER;
@@ -1029,10 +1095,10 @@ function favMatchesCo(co){ if(!FAVN)return true;
   return favKeys().some(function(k){
     var w=String(k).toUpperCase().replace(/[^A-Z ]/g,' ').trim().split(/\s+/)[0];
     return w && w.length>3 && c.indexOf(w)>=0; }); }
-function activeColor(o){ var h=shortHolder(o);
+function activeColor(o){ var h=primaryOwner(o);
   if(FAVN) return (F.fav[h]||FAV_UP[h.toUpperCase()])?(hcolFor(h)||SLOT[0]):FAVDIM;
   return holderColor(o); }
-function tenVis(t){ if(F.holder&&shortHolder(t.o)!==F.holder) return false;
+function tenVis(t){ if(F.holder&&primaryOwner(t.o)!==F.holder) return false;
   if(F.newOnly&&!(t.e&&t.e>='2026-09-01')) return false; return true; }
 function condVis(c){ if(F.cyear&&String(c.y)!==F.cyear)return false;
   if(F.ctype&&c.t!==F.ctype)return false; return true; }
@@ -1141,11 +1207,33 @@ function draw(){
     P.tenure.forEach(function(t){ if(!tenVis(t)||!visb(t.b))return;
       var c=activeColor(t.o); (byCol[c]=byCol[c]||[]).push(t); });
     Object.keys(byCol).forEach(function(col){
+      var dim=(col===OTHER||col===FAVDIM);
       ctx.beginPath(); byCol[col].forEach(function(t){ poly(t.r,true); });
-      ctx.fillStyle=col; ctx.globalAlpha=col===OTHER?.16:(isoMode?.39:.30); ctx.fill();
-      ctx.globalAlpha=col===OTHER?.5:.95; ctx.strokeStyle=col; ctx.stroke();
+      ctx.fillStyle=col; ctx.globalAlpha=dim?.16:(isoMode?.39:.30); ctx.fill();
+      ctx.globalAlpha=dim?.5:.95; ctx.strokeStyle=col; ctx.stroke();
     });
-    ctx.restore();}
+    ctx.restore();
+    /* JV hatch overlay, added 2026-09-11 - flags a joint-venture parcel (2+
+       owners in OWNERS) with a diagonal hatch on top of its normal fill
+       colour (the largest partner's, via activeColor/primaryOwner above),
+       rather than trying to paint every partner's share - see
+       map-pipeline.md for why a per-partner colour split doesn't scale past
+       two parties without looking busy. One combined clip region (union of
+       every visible JV polygon this frame) plus one set of 45-degree lines
+       spanning the canvas is cheaper than clipping+hatching each polygon
+       separately, and there are typically only a few dozen JV parcels on
+       screen at once. Tooltip (showTip) carries the real per-partner
+       percentages for whoever wants the exact split. */
+    var jvTen=P.tenure.filter(function(t){return tenVis(t)&&visb(t.b)&&isJVOwners(t.o)&&
+      (!FAVN||F.fav[primaryOwner(t.o)]||FAV_UP[primaryOwner(t.o).toUpperCase()]);});
+    if(jvTen.length){ctx.save();
+      ctx.beginPath(); jvTen.forEach(function(t){ poly(t.r,true); }); ctx.clip();
+      ctx.strokeStyle='rgba(255,255,255,.55)';
+      ctx.lineWidth=Math.max(.6,Math.min(1.3,view.s*.009));
+      ctx.beginPath();
+      for(var hx=-H;hx<W+H;hx+=7){ ctx.moveTo(hx,0); ctx.lineTo(hx+H,H); }
+      ctx.stroke();
+      ctx.restore();}}
 
   if(ON.foot&&P.foots.length){ctx.save();ctx.lineWidth=1.3;
     ctx.strokeStyle='rgba(255,0,0,1)';ctx.fillStyle='rgba(255,0,0,.28)';
@@ -1167,7 +1255,7 @@ function draw(){
 
   if(ON.lapse){var lapseTen=P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;});
     if(lapseTen.length){ctx.save();
-      lapseTen.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+      lapseTen.forEach(function(t){ if(F.holder&&primaryOwner(t.o)!==F.holder)return;
         if(!visb(t.b))return;
         /* Filled the same way as New Claims (solid holder-colour fill, dim for
            named individuals) so a claim about to lapse reads as whose ground
@@ -1183,7 +1271,7 @@ function draw(){
            ground is about to lapse. HCOL is the mapping that actually knows
            about Orano, GEM OIL, Skyharbour etc. See "Northern Miner colour
            scheme" in open-items.md. 2026-09-08. */
-        var col=HCOL[shortHolder(t.o)]||OTHER;
+        var col=HCOL[primaryOwner(t.o)]||OTHER;
         ctx.beginPath();poly(t.r,true);
         ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
         ctx.strokeStyle='rgba(255,20,147,.92)';
@@ -1196,9 +1284,9 @@ function draw(){
      further out" rather than an unrelated colour. */
   if(ON.lapse2){var lapse2Ten=P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;});
     if(lapse2Ten.length){ctx.save();
-      lapse2Ten.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+      lapse2Ten.forEach(function(t){ if(F.holder&&primaryOwner(t.o)!==F.holder)return;
         if(!visb(t.b))return;
-        var col=HCOL[shortHolder(t.o)]||OTHER;
+        var col=HCOL[primaryOwner(t.o)]||OTHER;
         ctx.beginPath();poly(t.r,true);
         ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
         ctx.strokeStyle='rgba(255,133,194,.92)';
@@ -1218,11 +1306,11 @@ function draw(){
        pattern and stroke width, unchanged. */
     P.ab.forEach(function(A){ if(!visb(A.b))return;
       if(F.holder){var abh=shortHolder(A.o); if(abh!==F.holder&&abh.toUpperCase()!==F.holder.toUpperCase())return;}
-      var col=activeColor(A.o);
+      var col=activeColor(A.o), abDim=(col===OTHER||col===FAVDIM);
       ctx.beginPath();poly(A.r,true);
-      ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.30; ctx.fill(); ctx.globalAlpha=1;
+      ctx.fillStyle=col; ctx.globalAlpha=abDim?.16:.30; ctx.fill(); ctx.globalAlpha=1;
       ctx.setLineDash(A.isNew?[]:[5,3]);
-      ctx.strokeStyle=col; ctx.globalAlpha=(col===OTHER)?.5:.95;
+      ctx.strokeStyle=col; ctx.globalAlpha=abDim?.5:.95;
       ctx.lineWidth=A.isNew?Math.max(1.8,Math.min(3.6,view.s*.022)):Math.max(.9,Math.min(2,view.s*.013));
       ctx.stroke(); ctx.globalAlpha=1;});
     ctx.setLineDash([]);ctx.restore();}
@@ -1246,7 +1334,7 @@ function draw(){
   if(ON.claim){
     var newTen=P.tenure.filter(function(t){return t.isNew;});
     if(newTen.length){ctx.save();
-      newTen.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+      newTen.forEach(function(t){ if(F.holder&&primaryOwner(t.o)!==F.holder)return;
         if(!visb(t.b))return;
         var col=newClaimColor(t.o,t.corp);
         /* SOLID fill in the company colour first - a thin dashed outline alone
@@ -1266,7 +1354,7 @@ function draw(){
       ctx.restore();}
     var orphanClaims=P.claims.filter(function(c){return c.orphan;});
     if(orphanClaims.length){ctx.save();
-      orphanClaims.forEach(function(c){ if(F.holder&&shortHolder(c.o)!==F.holder)return;
+      orphanClaims.forEach(function(c){ if(F.holder&&primaryOwner(c.o)!==F.holder)return;
         var x=sx(c.p),y=sy(c.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
         var col=newClaimColor(c.o,c.corp);
         ctx.beginPath();ctx.arc(x,y,4.6,0,6.2832);
@@ -1345,7 +1433,7 @@ function draw(){
       if(!pass[1])return;
       pass[0].forEach(function(w){
         var x=sx(w.p),y=sy(w.p);if(x<-60||x>W+60||y<-60||y>H+60)return;
-        var al=favMatchesCo(w.co)?1:.22;
+        var al=1;/* 2026-09-11: favourites no longer dim news waypoints - matches isolate-mode behavior (Top 10 Holder click never dimmed news either). favMatchesCo() is now unused here on purpose. */
         if(w.unc>0){var rr=Math.max(7,w.unc*pxkm);
           ctx.globalAlpha=al*.5;ctx.strokeStyle=w.col;ctx.lineWidth=1.1;ctx.setLineDash([3,3]);
           ctx.beginPath();ctx.arc(x,y,rr,0,6.2832);ctx.stroke();ctx.setLineDash([]);}
@@ -1407,7 +1495,7 @@ function pick(mx,my){
   if(ON.mine)P.mines.forEach(function(m){pt(m.p,function(){return{t:'mine',o:m};});});
   if(ON.dep)P.deps.forEach(function(d){if(!F.status||d.s===F.status)pt(d.p,function(){return{t:'dep',o:d};});});
   if(ON.smdi)P.smdi.forEach(function(d){if(!F.smdippm||(d.ppm!=null&&d.ppm>=F.smdippm))pt(d.p,function(){return{t:'smdi',o:d};});});
-  if(ON.claim)P.claims.forEach(function(c){if(c.orphan&&(!F.holder||shortHolder(c.o)===F.holder))pt(c.p,function(){return{t:'claim',o:c};});});
+  if(ON.claim)P.claims.forEach(function(c){if(c.orphan&&(!F.holder||primaryOwner(c.o)===F.holder))pt(c.p,function(){return{t:'claim',o:c};});});
   if(best)return best;
   if(ON.tenure){for(var i=0;i<P.tenure.length;i++){var t=P.tenure[i];
     if(!tenVis(t)||!visb(t.b))continue;
@@ -1452,7 +1540,8 @@ function showTip(h,mx,my){
     (o.ppm!=null&&o.assay===false?'<div class="hint">radiometric/gamma-derived figure, not a chemical assay</div>':'')+
     (o.ppm!=null?'<div class="hint">self-extracted from narrative text - approximate, not independently verified</div>':'')+
     '<div class="hint">click for the provincial SMDI record</div>';
-  else if(h.t==='ten')s='<b>'+esc(o.d)+'</b>'+row('Holder',shortHolder(o.o))+
+  else if(h.t==='ten')s='<b>'+esc(o.d)+'</b>'+
+    (isJVOwners(o.o)?row('Joint venture',parseOwners(o.o).sort(function(a,b){return b.pct-a.pct;}).map(function(w){return esc(w.name)+' '+w.pct.toFixed(1)+'%';}).join(' / ')):row('Holder',shortHolder(o.o)))+
     (o.e?row('Registered',o.e):'')+(o.st?row('Status',o.st):'')+
     (o.x?row('Good standing until',o.x):'')+
     ((o.lapseSoon||o.lapseSoon2)&&o.dep!=null?row('$ to hold','$'+Math.round(o.dep).toLocaleString()):'')+
@@ -1724,6 +1813,7 @@ renderNewClaimKey();
    this is the practical way to actually SEE any one of the top 10 on the map
    itself, one at a time (or up to 3 via Spotlight above). ---------- */
 var thlg=document.getElementById('topholders');
+function fmtHa(n){ n=n||0; return (n>=1000?Math.round(n).toLocaleString():n.toFixed(n>=100?0:1))+' ha'; }
 function renderTopHolders(){ if(!thlg||!topCorpHolders.length)return;
   var top10=topCorpHolders.slice(0,10);
   thlg.innerHTML=top10.map(function(h,i){
@@ -1732,8 +1822,8 @@ function renderTopHolders(){ if(!thlg||!topCorpHolders.length)return;
       var sw='<span class="sw" style="background:'+col+'"></span>';
       return '<span class="lg" data-h="'+esc(h).replace(/"/g,'&quot;')+'" style="cursor:pointer'+
         (active?';outline:1px solid #fff':'')+'" title="Click to isolate this holder on the map">'+sw+
-        esc(shortHolder(h))+' <span class="ct">'+tenureCount[h]+'</span></span>';}).join('')+
-    '<span class="lgnote">Ranked over all active claims. Click a row to isolate it.</span>';
+        esc(shortHolder(h))+' <span class="ct">'+fmtHa(holderHa[h])+'</span></span>';}).join('')+
+    '<span class="lgnote">Ranked by hectares held, joint ventures split by their stated ownership %. Click a row to isolate it.</span>';
   Array.prototype.forEach.call(thlg.querySelectorAll('.lg'),function(el){
     el.addEventListener('click',function(){
       var h=el.getAttribute('data-h');
@@ -1768,6 +1858,7 @@ function renderFav(){
   rows.sort(function(a,b){
     var fa=F.fav[a]?0:1, fb=F.fav[b]?0:1;
     if(fa!==fb) return fa-fb;
+    if(!q){ var ia=isCorp(a)?0:1, ib=isCorp(b)?0:1; if(ia!==ib) return ia-ib; }
     return shortHolder(a).localeCompare(shortHolder(b)); });
   if(!rows.length){
     favListEl.innerHTML='<div class="favrow">no company matches that search</div>';
