@@ -386,14 +386,19 @@ def main():
     # point-in-ring containment (gazetteer_name() below) whenever LAKNAMEEN comes back
     # blank/whitespace-only - this doesn't touch anything that already has a real name.
     print("named water features (gazetteer)")
-    wnames = q(f"{ARC}/SaskNamesDatabaseWater/MapServer/0", "1=1", "TOPONYM",
+    wnames = q(f"{ARC}/SaskNamesDatabaseWater/MapServer/0", "1=1", "TOPONYM,HECTARES",
                window=True, label="water names", page=500)
     name_pts = []
     for f in wnames:
         g = f.get("geometry") or {}
-        nm = (f.get("attributes", {}).get("TOPONYM") or "").strip()
+        attrs = f.get("attributes", {})
+        nm = (attrs.get("TOPONYM") or "").strip()
         if nm and g.get("x") is not None:
-            name_pts.append((nm, g["x"], g["y"]))
+            try:
+                ha = float(attrs.get("HECTARES") or 0)
+            except (TypeError, ValueError):
+                ha = 0.0
+            name_pts.append((nm, g["x"], g["y"], ha))
     print(f"  named water points: {len(name_pts)}")
 
     def point_in_ring(x, y, ring):
@@ -411,13 +416,24 @@ def main():
         return inside
 
     def gazetteer_name(ring):
-        """Best-effort fallback name for a lake ring whose own LAKNAMEEN is blank: the
-        first gazetteer point that falls inside it. Returns '' (genuinely unnamed) if
-        nothing matches - never guessed, only ever a real TOPONYM from the source."""
-        for nm, x, y in name_pts:
-            if point_in_ring(x, y, ring):
-                return nm
-        return ""
+        """Best-effort fallback name for a lake ring whose own LAKNAMEEN is blank:
+        among every gazetteer point that falls inside it, the one with the largest
+        HECTARES value. Fixed 2026-09-13 after a real mismatch was found live: the
+        Hydrography service's coarsest generalization tier dissolves/simplifies
+        outlines loosely enough that a big lake's own outline can also enclose a
+        much smaller neighbour's single gazetteer point - e.g. Tazin Lake (36,511 ha,
+        several TOPONYM points scattered across its area) versus tiny Godfrey Lake
+        (65.65 ha) sitting at its northern tip - and taking whichever point matched
+        first named the whole polygon after the small lake instead of the real, much
+        larger one. Preferring the largest HECTARES on a multi-match resolves that:
+        a small satellite lake only wins if it's the ONLY match, not merely the
+        first one tested. Returns '' (genuinely unnamed) if nothing matches - never
+        guessed, only ever a real TOPONYM from the source."""
+        best_nm, best_ha = "", -1.0
+        for nm, x, y, ha in name_pts:
+            if point_in_ring(x, y, ring) and ha > best_ha:
+                best_nm, best_ha = nm, ha
+        return best_nm
 
     def _segs_cross(a1, a2, b1, b2):
         def cross(o, a, b):
