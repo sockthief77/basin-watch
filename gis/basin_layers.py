@@ -302,12 +302,25 @@ def main():
     hb = []
     for f in roads:
         a = f.get("attributes", {})
+        # Route number/name, added 2026-09-12 - name_of()/a.get("ROUTE") never matched
+        # anything on this service (confirmed: every prior bundle shipped "n":"" for
+        # every single highway segment, silently, since nothing downstream ever
+        # asserted a highway actually had a name), so highway labelling was never
+        # actually possible before this fix, only quietly broken. The service's real
+        # fields (confirmed 2026-09-12 against .../MapServer/133?f=json and 134?f=json):
+        # RTNUMBER1 ("Route Number 1", e.g. "905") is what's normally sign-posted and
+        # what a reader would recognize, so it's preferred; RTENAME1EN ("Route Name
+        # English 1") is the fallback for any segment with a name but no number.
+        rtn = (a.get("RTNUMBER1") or "").strip()
+        rtname = (a.get("RTENAME1EN") or "").strip()
+        label = ("Hwy " + rtn) if rtn else (rtname or name_of(a) or "")
         for path in (f.get("geometry") or {}).get("paths", []):
             simp = dp(path, 0.004)
             if len(simp) >= 2:
-                hb.append({"n": name_of(a) or a.get("ROUTE") or "", "p": rnd(simp, 3)})
+                hb.append({"n": label, "p": rnd(simp, 3)})
     B["highways"] = hb
-    print(f"  highway segments bundled: {len(hb)}")
+    n_named_hw = sum(1 for h in hb if h["n"])
+    print(f"  highway segments bundled: {len(hb)} ({n_named_hw} carry a route label)")
 
     # ---- 5. basin outline: NOT derived here ----
     # Ezra supplied a surveyed Athabasca_Basin_outline.shp (the real basin polygon,
@@ -355,6 +368,109 @@ def main():
     print(f"  lakes: {len(lk)} raw features returned")
     save("lakes", esri_to_gj(lk))
 
+    # ---- 6b-ii. named-water-feature gazetteer (added 2026-09-13) ----
+    # Hydrography/MapServer/80's own LAKNAMEEN field is blank - literally a single space
+    # character, not an empty string, confirmed by querying the exact feature directly -
+    # for every big, well-known lake tested: Wollaston Lake, Reindeer Lake, others. It
+    # isn't a stray gap either: several of the biggest un-named polygons this layer
+    # returns have bounding boxes spanning multiple degrees of longitude, well past the
+    # real extent of any single lake, meaning this "coarsest scale group" tier appears to
+    # dissolve multiple adjacent lakes into one polygon at this generalization level -
+    # there's no name to recover from LAKNAMEEN for those at all, dissolved or not.
+    # Saskatchewan's GeoHub separately publishes SaskNamesDatabaseWater, a point
+    # gazetteer of officially named water features (field TOPONYM) - confirmed directly
+    # against two of the biggest gaps: Wollaston Lake (598114E/6458687N UTM13, 273,268 ha
+    # per its own HECTARES field) and Reindeer Lake (649106E/6343982N, 477,542 ha), both
+    # matching their real published surface areas closely. Pulled once here, windowed the
+    # same as every other background layer, and matched to each lake ring by simple
+    # point-in-ring containment (gazetteer_name() below) whenever LAKNAMEEN comes back
+    # blank/whitespace-only - this doesn't touch anything that already has a real name.
+    print("named water features (gazetteer)")
+    wnames = q(f"{ARC}/SaskNamesDatabaseWater/MapServer/0", "1=1", "TOPONYM",
+               window=True, label="water names", page=500)
+    name_pts = []
+    for f in wnames:
+        g = f.get("geometry") or {}
+        nm = (f.get("attributes", {}).get("TOPONYM") or "").strip()
+        if nm and g.get("x") is not None:
+            name_pts.append((nm, g["x"], g["y"]))
+    print(f"  named water points: {len(name_pts)}")
+
+    def point_in_ring(x, y, ring):
+        inside = False
+        n = len(ring)
+        j = n - 1
+        for i in range(n):
+            xi, yi = ring[i]
+            xj, yj = ring[j]
+            if (yi > y) != (yj > y):
+                xin = (xj - xi) * (y - yi) / ((yj - yi) or 1e-12) + xi
+                if x < xin:
+                    inside = not inside
+            j = i
+        return inside
+
+    def gazetteer_name(ring):
+        """Best-effort fallback name for a lake ring whose own LAKNAMEEN is blank: the
+        first gazetteer point that falls inside it. Returns '' (genuinely unnamed) if
+        nothing matches - never guessed, only ever a real TOPONYM from the source."""
+        for nm, x, y in name_pts:
+            if point_in_ring(x, y, ring):
+                return nm
+        return ""
+
+    def _segs_cross(a1, a2, b1, b2):
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+        d1, d2 = cross(b1, b2, a1), cross(b1, b2, a2)
+        d3, d4 = cross(a1, a2, b1), cross(a1, a2, b2)
+        return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
+
+    def ring_self_intersects(ring):
+        """O(n^2) proper-crossing count with a cheap bbox pre-filter per segment pair -
+        added 2026-09-13 after a few major lakes (several dissolved-looking 'blob'
+        shapes, one large enough to have been mistaken for Tazin Lake during
+        investigation) turned out to have real, measurable self-crossings after
+        simplification. Root cause not fully pinned down (most likely over-aggressive
+        generalization on very complex Shield-lake-district shapes, either this
+        service's own server-side maxAllowableOffset or this script's own dp()
+        simplification, possibly both) - rather than chase that further, this counts
+        actual self-crossings in the shipped (post-simplification) ring and rejects
+        only the ones that are badly tangled, not the ones with a couple of
+        cosmetically-invisible micro-crossings.
+
+        A plain "any crossing at all" test was tried first and rejected 49 of 55 real
+        lakes, including Lake Athabasca - almost every DP-simplified ring of a genuinely
+        complex, legitimate shoreline carries a handful of sub-pixel self-crossings from
+        the simplification itself (confirmed: Lake Athabasca has 5, on a 289-point ring,
+        invisible at any normal zoom). What distinguishes an actually broken shape isn't
+        having ANY crossings, it's having MANY, relative to its point count - the
+        confirmed-broken shapes found this way ran 72-180 crossings against a similar
+        few-hundred to ~1000-point ring (7-26% of points involved in a crossing), while
+        every legitimately fine lake/river tested stayed under 5%. count > max(10,
+        0.1*n) draws the line comfortably inside that gap. Runs on the small (~tens to
+        low hundreds of points) simplified ring, not the raw one, so the O(n^2) cost
+        stays negligible against this section's own SMDI scrape elsewhere in the file."""
+        n = len(ring)
+        if n < 4:
+            return False
+        segs = [(ring[i], ring[(i + 1) % n]) for i in range(n)]
+        boxes = [(min(a[0], b[0]), max(a[0], b[0]), min(a[1], b[1]), max(a[1], b[1])) for a, b in segs]
+        count = 0
+        limit = max(10, int(0.1 * n))
+        for i in range(n):
+            for j in range(i + 2, n):
+                if i == 0 and j == n - 1:
+                    continue  # adjacent pair, wraps around - shares an endpoint, not a crossing
+                bi, bj = boxes[i], boxes[j]
+                if bi[1] < bj[0] or bj[1] < bi[0] or bi[3] < bj[2] or bj[3] < bi[2]:
+                    continue  # bounding boxes don't overlap - can't cross
+                if _segs_cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1]):
+                    count += 1
+                    if count > limit:
+                        return True
+        return False
+
     # ---- 6c. Alberta lakes (added 2026-09-09) ----
     # Saskatchewan Hydrography only carries Saskatchewan features, so any lake crossing
     # the AB/SK border (Lake Athabasca itself, among others) was hard-truncated right at
@@ -401,14 +517,31 @@ def main():
         lakes_ranked.append((ring_area(best), name_of(f.get("attributes", {})), best))
     lakes_ranked.sort(key=lambda t: -t[0])
     lb = []
+    skipped_bad = 0
+    named_from_gazetteer = 0
     # Widened 40 -> 55 on 2026-09-09 so the added Alberta lakes get their own room
-    # instead of just displacing smaller Saskatchewan lakes out of the cut.
-    for a, nm, r in lakes_ranked[:55]:          # major lakes only, biggest first
+    # instead of just displacing smaller Saskatchewan lakes out of the cut. As of
+    # 2026-09-13 this loop no longer hard-slices the top 55 candidates up front - a
+    # self-intersecting one is skipped and doesn't burn a slot, so the 55 shipped are
+    # always the 55 biggest GOOD shapes, not just the 55 biggest.
+    for a, nm, r in lakes_ranked:
+        if len(lb) >= 55:
+            break
         s2 = dp(r, 0.003)
-        if len(s2) > 2:
-            lb.append({"n": nm or "", "a": round(a, 1), "r": rnd(s2, 4)})
+        if len(s2) <= 2:
+            continue
+        if ring_self_intersects(s2):
+            skipped_bad += 1
+            print(f"  ! lake skipped, self-intersecting after simplification "
+                  f"(area~{a:.4f}, name={nm!r})")
+            continue
+        nm2 = nm if (nm or "").strip() else gazetteer_name(s2)
+        if nm2 and not (nm or "").strip():
+            named_from_gazetteer += 1
+        lb.append({"n": nm2 or "", "a": round(a, 1), "r": rnd(s2, 4)})
     B["lakes"] = lb
-    print(f"  lakes bundled: {len(lb)} ({len(lk)} SK candidates, {len(ab_lk)} AB candidates)")
+    print(f"  lakes bundled: {len(lb)} ({len(lk)} SK candidates, {len(ab_lk)} AB candidates, "
+          f"{skipped_bad} skipped as self-intersecting, {named_from_gazetteer} named from the gazetteer)")
 
     # ---- 7. radioactive boulders -> cps grid ----
     # Static historical dataset (boulder occurrences logged over decades) - the true
@@ -584,11 +717,28 @@ def main():
         cutoff_date, datetime.time.min, tzinfo=datetime.timezone.utc
     ).timestamp() * 1000)
 
+    # Restricted to claims that also made it into `tb` (tenure) above, added
+    # 2026-09-13 - found live: MC00024178 (Gary Clayton Dunn, staked 2026-09-11)
+    # appeared in `claims` with no matching `tenure` entry at all, so the client
+    # engine's own "no matching tenure polygon" fallback drew it as a bare
+    # circle marker forever, at every zoom, instead of a shaped claim outline.
+    # Root cause: this loop's own geometry guard (`if not rings: continue`) is
+    # weaker than the tenure loop's above (`if len(s) < 3: continue`, checked
+    # AFTER Douglas-Peucker simplification) - a claim whose polygon is small or
+    # sliver-shaped enough to simplify down to under 3 points is correctly
+    # dropped from `tenure` but was still passing this loop's own, looser
+    # check and landing in `claims` anyway. Rather than duplicate the DP
+    # rejection rule a second time and risk the two drifting apart again, this
+    # just requires a claim to already be present in `tb` - the two lists can
+    # now never disagree about which dispositions exist.
+    tenure_ids = {t["d"] for t in tb if t.get("d")}
     claims_out = []
     for f in tn:
         a = f["attributes"]
         eff = a.get("EFFECTIVED")
         if not eff or eff < cutoff_ms:
+            continue
+        if a.get("DISPOSIT_1") not in tenure_ids:
             continue
         rings = (f.get("geometry") or {}).get("rings", [])
         if not rings:
