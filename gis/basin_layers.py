@@ -535,13 +535,33 @@ def main():
     lb = []
     skipped_bad = 0
     named_from_gazetteer = 0
+    rivers_prioritized = 0
     # Widened 40 -> 55 on 2026-09-09 so the added Alberta lakes get their own room
     # instead of just displacing smaller Saskatchewan lakes out of the cut. As of
     # 2026-09-13 this loop no longer hard-slices the top 55 candidates up front - a
     # self-intersecting one is skipped and doesn't burn a slot, so the 55 shipped are
     # always the 55 biggest GOOD shapes, not just the 55 biggest.
+    #
+    # Cap raised 55 -> 60 and a river priority pass added, 2026-09-13, after Clearwater
+    # River (a real, named feature on this same Hydrography layer, with its own
+    # provincial park along it) turned out to be ranked well outside the top 55 and so
+    # never shipped at all. Root cause: this whole selection is ranked by RING AREA, which
+    # systematically disadvantages a long, narrow river against a round lake of the same
+    # geographic significance - a river can be enormously important and still have a
+    # small polygon footprint. Fix: any candidate whose own government-supplied name
+    # (LAKNAMEEN, via name_of() - NOT the gazetteer fallback, which only fires for
+    # candidates that already made the cut) contains "river" is pulled to the FRONT of
+    # the ranking, ahead of area-only sorting, so a named river competes for a guaranteed
+    # slot instead of only the slots an unnamed or lake-sized area would win it. This
+    # does not touch the gazetteer-naming or self-intersection logic below - a river
+    # candidate still has to pass both like everything else.
+    def _is_named_river(nm):
+        return "river" in (nm or "").lower()
+    lakes_ranked = (sorted([t for t in lakes_ranked if _is_named_river(t[1])], key=lambda t: -t[0])
+                    + sorted([t for t in lakes_ranked if not _is_named_river(t[1])], key=lambda t: -t[0]))
+    LAKE_CAP = 60
     for a, nm, r in lakes_ranked:
-        if len(lb) >= 55:
+        if len(lb) >= LAKE_CAP:
             break
         s2 = dp(r, 0.003)
         if len(s2) <= 2:
@@ -551,13 +571,16 @@ def main():
             print(f"  ! lake skipped, self-intersecting after simplification "
                   f"(area~{a:.4f}, name={nm!r})")
             continue
+        if _is_named_river(nm):
+            rivers_prioritized += 1
         nm2 = nm if (nm or "").strip() else gazetteer_name(s2)
         if nm2 and not (nm or "").strip():
             named_from_gazetteer += 1
         lb.append({"n": nm2 or "", "a": round(a, 1), "r": rnd(s2, 4)})
     B["lakes"] = lb
     print(f"  lakes bundled: {len(lb)} ({len(lk)} SK candidates, {len(ab_lk)} AB candidates, "
-          f"{skipped_bad} skipped as self-intersecting, {named_from_gazetteer} named from the gazetteer)")
+          f"{skipped_bad} skipped as self-intersecting, {named_from_gazetteer} named from the gazetteer, "
+          f"{rivers_prioritized} named rivers guaranteed a slot ahead of area ranking)")
 
     # ---- 7. radioactive boulders -> cps grid ----
     # Static historical dataset (boulder occurrences logged over decades) - the true
