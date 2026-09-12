@@ -1,11 +1,11 @@
 name: GIS export
 
 # Runs basin_layers.py (Saskatchewan/Alberta ArcGIS pulls + SMDI scrape) on
-# GitHub's own servers instead of Ezra's laptop. The cloud container and
+# GitHub's own servers instead of a laptop. The cloud container and
 # device sandbox used earlier in this project are blocked from
 # gis.saskatchewan.ca and the Alberta GIS hosts by an egress allowlist;
-# GitHub Actions runners are not behind that allowlist. Ezra's laptop no
-# longer needs to be awake for this to run - see claude/open-items.md and
+# GitHub Actions runners are not behind that allowlist. No machine
+# needs to stay awake for this to run - see claude/open-items.md and
 # claude/claim-monitor-state.md ("Standing PATH bug") for the fragile
 # Windows Scheduled Task this replaces.
 #
