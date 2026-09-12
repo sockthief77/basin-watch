@@ -6,14 +6,19 @@ Pulls every layer behind the Basin Watch map from the Saskatchewan ArcGIS
 services, writes full-resolution GeoJSON for ArcGIS Pro, and writes a small
 simplified bundle (map_bundle.json) that the newsletter map is built from.
 
-RUN FROM WINDOWS. The Claude sandbox is blocked from gis.saskatchewan.ca;
-your own network is not.
+Runs automatically every morning via .github/workflows/gis-export.yml, on
+GitHub's own runners - those aren't behind the egress allowlist that blocks
+gis.saskatchewan.ca from the Claude sandbox and from a laptop's own network
+sandbox, so this no longer needs a human's machine to be awake. Still runnable
+by hand anywhere with a normal network path to gis.saskatchewan.ca:
 
     python basin_layers.py            # everything
     python basin_layers.py --quick    # skip EM conductors (much faster)
 
 Everything is clipped to the basin window (112W-102W, 56.5N-60.2N) except
-province-wide tenure.
+province-wide tenure and the claims layer built from it (section 8b) - both
+deliberately kept province-wide; the client engine's own northOK() filter
+clips them for display.
 """
 import json, os, sys, math, re, time, urllib.request, urllib.parse, datetime
 
@@ -529,6 +534,81 @@ def main():
                    "r": rnd(s, 4)})
     B["tenure"] = tb
 
+    # ---- 8b. new claims (14-day staking window) - added 2026-09-12 ----
+    # Closes the "two pipelines" gap: this used to be computed by hand, every
+    # morning, inside the uranium-brief skill's own session - a separate
+    # EFFECTIVED-window ArcGIS query, plus a per-claim coordinate lookup for
+    # anything not yet in the tenure snapshot the session happened to have. That
+    # meant data/bundle.json's own "claims" key (what basinwatch.ca's map
+    # actually shows) was never touched by anything and sat frozen at whatever a
+    # one-time seed put there, while the two claude.ai pages got a fresh (but
+    # differently-sourced) claims list every day - three surfaces, two different
+    # answers. Computing it here instead means it comes from the exact same
+    # live query as `tenure` above (no second ArcGIS round-trip), lands in
+    # data/bundle.json automatically every morning at 07:30 Regina, and is the
+    # one and only place "new claims" ever gets computed - see
+    # claude/map-pipeline.md and claude/claim-monitor-state.md in the Basin
+    # Watch project for the incident this fixes.
+    #
+    # Window: trailing 14 calendar days, today inclusive - matches the
+    # uranium-brief skill's "Staking window" constant (widened from 7 days
+    # 2026-09-11). Recomputed from scratch every run, not diffed against a
+    # previous snapshot - unlike the lapsed-claims layer below, a claim doesn't
+    # need "was this new since last time" tracking, just "is it still inside
+    # the trailing 14 days as of today."
+    #
+    # Deliberately province-wide, same as `tenure` above (this file's own
+    # docstring: "province-wide tenure" is the deliberate exception to the
+    # basin-window clip everything else gets). The client engine's own
+    # CLAIMS_F filter (`northOK()` in site/shell.html) already excludes
+    # out-of-basin staking - e.g. the Flin Flon-area GEM OIL block, ~370 km
+    # outside the basin, appeared in this same window in September 2026 - at
+    # render time, so this section doesn't need to duplicate that filter here.
+    # `corp` uses the same keyword test the map's own legend/colour code has
+    # documented (but never had a real producer for) since it shipped:
+    # URANIUM, RESOURCES, GEM OIL, CORP, LTD, INC anywhere in the holder string.
+    print("new claims (trailing 14-day EFFECTIVED window)")
+    CORP_KEYWORDS = ("URANIUM", "RESOURCES", "GEM OIL", "CORP", "LTD", "INC")
+
+    def is_corp_holder(owner):
+        u = (owner or "").upper()
+        return any(k in u for k in CORP_KEYWORDS)
+
+    # 13 days back, not 14: "trailing 14 calendar days, today inclusive" spans
+    # 14 days total only when the cutoff itself is the 14th day (e.g. run on
+    # 2026-09-12, window is 2026-08-30 through 2026-09-12 inclusive - that's
+    # 13 days back from today, not 14). Caught by a synthetic boundary test
+    # before this shipped - see the test in this change's own notes.
+    cutoff_date = datetime.date.today() - datetime.timedelta(days=13)
+    cutoff_ms = int(datetime.datetime.combine(
+        cutoff_date, datetime.time.min, tzinfo=datetime.timezone.utc
+    ).timestamp() * 1000)
+
+    claims_out = []
+    for f in tn:
+        a = f["attributes"]
+        eff = a.get("EFFECTIVED")
+        if not eff or eff < cutoff_ms:
+            continue
+        rings = (f.get("geometry") or {}).get("rings", [])
+        if not rings:
+            continue
+        ring = max(rings, key=len)
+        xs = [p[0] for p in ring]
+        ys = [p[1] for p in ring]
+        claims_out.append({
+            "d": a.get("DISPOSIT_1"),
+            "o": a.get("OWNERS") or "",
+            "x": round((min(xs) + max(xs)) / 2, 4),
+            "y": round((min(ys) + max(ys)) / 2, 4),
+            "e": ms(eff),
+            "corp": is_corp_holder(a.get("OWNERS")),
+        })
+    B["claims"] = claims_out
+    n_corp = sum(1 for c in claims_out if c["corp"])
+    print(f"  claims: {len(claims_out)} staked in the trailing 14 days "
+          f"({n_corp} corporate, {len(claims_out)-n_corp} individual)")
+
     # ---- 9. EM conductors ----
     if not quick:
         print("EM conductors (slow, ~28k lines)")
@@ -871,7 +951,7 @@ def main():
     p = os.path.join(OUT, "map_bundle.json")
     json.dump(B, open(p, "w"))
     print(f"\nmap_bundle.json  {os.path.getsize(p)/1e6:.1f} MB")
-    for k in ("tenure", "deposits", "mines", "places", "highways", "footprints",
+    for k in ("tenure", "claims", "deposits", "mines", "places", "highways", "footprints",
               "lakes", "boulder_grid", "geochem_grid", "conductors", "lapsed", "ab_tenure",
               "restricted", "smdi"):
         print(f"  {k:14s} {len(B.get(k, [])):>7,}")
