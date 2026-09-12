@@ -12,7 +12,7 @@ incident 3 below for why it's guarded differently from everything else here.)
 
 Deliberately leaves three keys untouched, per the merge guard in the Basin
 Watch project's claude/map-pipeline.md:
-  - "basin"     - never produced by this script (Ezra-supplied shapefile,
+  - "basin"     - never produced by this script (a supplied shapefile,
                    basin_layers.py explicitly does not set this key)
   - "news"      - hand-curated by the daily brief skill, not a GIS layer
   - "generated" - the edition-publish date, owned by the daily brief skill
