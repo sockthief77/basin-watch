@@ -43,7 +43,7 @@ ABWIN = (-114.5, 58.0, -109.0, 60.2)
 # anywhere near the basin" pre-filter, but if an Alberta lake polygon that qualifies for
 # ABWIN is used un-clipped, its geometry can extend a full degree east of the real
 # border, directly overlapping Saskatchewan's own (differently-generalized) lake
-# geometry in that strip - added 2026-09-11 after Ezra screenshotted exactly that: a
+# geometry in that strip - added 2026-09-11 after a screenshot showed exactly that: a
 # visible seam/mismatch over Lake Athabasca where the two sources meet. See section 6c.
 BORDER_LON = -110.0
 
@@ -323,7 +323,7 @@ def main():
     print(f"  highway segments bundled: {len(hb)} ({n_named_hw} carry a route label)")
 
     # ---- 5. basin outline: NOT derived here ----
-    # Ezra supplied a surveyed Athabasca_Basin_outline.shp (the real basin polygon,
+    # A surveyed Athabasca_Basin_outline.shp was supplied (the real basin polygon,
     # not a bedrock-geology guess). It was converted once and merged directly into
     # BASIN_BUNDLE.basin on the live page. Deriving it from Million_Scale_Geology was
     # tried and dropped - bedrock geology maps the basin cover as dozens of separate
@@ -937,7 +937,7 @@ def main():
     #
     # iscmaps.isc.ca is blocked from the cloud container and the linked-device sandbox,
     # same as gis.saskatchewan.ca (confirmed: curl gets connection reset through the
-    # egress proxy) - this only runs from Ezra's own Windows Python, same as everything
+    # egress proxy) - this section is not run by the automated GitHub Actions pipeline,
     # else in this file.
     #
     # Field names on these six sublayers are NOT yet confirmed (no way to query them
