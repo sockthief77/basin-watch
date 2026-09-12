@@ -4,10 +4,11 @@ Merge gis/exports/map_bundle.json (fresh output of basin_layers.py) into
 data/bundle.json (the bundle the site actually builds from).
 
 Run after gis/basin_layers.py, before committing. Replaces every key
-basin_layers.py produces - tenure, deposits, mines, places, highways,
+basin_layers.py produces - tenure, claims, deposits, mines, places, highways,
 footprints, lakes, boulder_grid, boulder_total, geochem_grid, geochem_total,
 conductors, lapsed, ab_tenure, restricted, smdi - with the freshly pulled
-version, subject to the guards below.
+version, subject to the guards below. ("claims" added 2026-09-12 - see
+incident 3 below for why it's guarded differently from everything else here.)
 
 Deliberately leaves three keys untouched, per the merge guard in the Basin
 Watch project's claude/map-pipeline.md:
@@ -63,6 +64,25 @@ fully:
    layers is essentially always a failed/partial source query, never a
    real registry change (claims lapse and get staked in single digits or
    low double digits per day, not by cutting a whole layer in half).
+
+3. (2026-09-12, anticipated rather than hit live) The new "claims" layer
+   (gis/basin_layers.py section 8b - the trailing-14-day staking window,
+   added to close the two-pipeline drift between the claude.ai pages and
+   basinwatch.ca - see claude/map-pipeline.md) does NOT behave like the
+   other layers here: it's a rolling window recomputed from scratch every
+   run, not an incrementally-updated registry, so its day-to-day count can
+   legitimately swing by more than half in either direction (a big multi-
+   claim staking batch simply ages out of the 14-day window on its own
+   schedule, unrelated to anything going wrong that day). Running it through
+   SHRINK_FLOOR as-is would misread that normal volatility as a failed query
+   and freeze "claims" stale again - reintroducing, via a different code
+   path, exactly the staleness bug this whole file exists to prevent. Since
+   "claims" is built from the exact same `tenure` pull in the same run (see
+   section 8b's own comment), its correctness is already guaranteed by
+   tenure's own guard: if that pull failed, tenure's guard already rejects
+   it (see DERIVED_FROM below), and if it succeeded, claims's own count is
+   trustworthy at any size. So "claims" skips SHRINK_FLOOR entirely and
+   instead inherits tenure's accept/reject decision.
 """
 import json
 from pathlib import Path
@@ -92,6 +112,13 @@ SHRINK_FLOOR = 0.5
 # it either way, just take the fresh value like before.
 MIN_SIZE_TO_GUARD = 20
 
+# Keys built FROM another key's data in the same basin_layers.py run, whose
+# own size is naturally volatile (a rolling window, not a slow-moving
+# registry) and so must never be judged by SHRINK_FLOOR on its own terms -
+# it inherits its source key's accept/reject decision instead. See incident
+# 3 above.
+DERIVED_FROM = {"claims": "tenure"}
+
 
 def list_should_be_rejected(fresh_list, existing_list):
     """True if fresh_list looks like a failed/partial query, not real data."""
@@ -118,8 +145,8 @@ def main() -> None:
     rejected_lists = set()
 
     for k, v in fresh.items():
-        if k in SKIP_KEYS or k in TOTAL_OF.values():
-            continue  # totals are handled below, tied to their list's decision
+        if k in SKIP_KEYS or k in TOTAL_OF.values() or k in DERIVED_FROM:
+            continue  # totals and derived keys are handled below, tied to another key's decision
         if isinstance(v, list):
             existing = bundle.get(k)
             if list_should_be_rejected(v, existing):
@@ -137,6 +164,15 @@ def main() -> None:
             continue
         bundle[total_key] = fresh[total_key]
         changed.append(total_key)
+
+    for derived_key, source_key in DERIVED_FROM.items():
+        if derived_key not in fresh:
+            continue
+        if source_key in rejected_lists:
+            skipped.append((derived_key, len(bundle.get(derived_key) or []), len(fresh[derived_key])))
+            continue
+        bundle[derived_key] = fresh[derived_key]
+        changed.append(derived_key)
 
     BUNDLE.write_text(json.dumps(bundle, separators=(",", ":")), encoding="utf-8")
     print(f"merged {len(changed)} keys into {BUNDLE}: {', '.join(sorted(changed))}")
