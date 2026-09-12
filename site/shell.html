@@ -228,6 +228,16 @@ footer .srcs{columns:2;column-gap:28px;margin-top:8px}
 .scalebar span{display:block;height:5px;border:1px solid var(--muted);border-top:none}
 .mapempty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;
   padding:24px;font-size:13px;color:var(--muted);background:var(--sunk)}
+/* Click-to-interact hint, added 2026-09-12/13 - sits over the map, pointer-events:none
+   so it never blocks the click it's asking for. Text/position/activation-area match the
+   final 2026-09-13 revision (top-left, whole map card counts as "interacting"). */
+.mapactivate{position:absolute;left:12px;top:12px;
+  background:rgba(30,30,30,.88);color:var(--muted);font-size:11.5px;line-height:1.3;
+  padding:6px 12px;border:1px solid var(--line);border-radius:3px;
+  pointer-events:none;white-space:nowrap;z-index:6}
+.mapactivate[hidden]{display:none}
+.rank.linked{cursor:pointer}
+.rank.linked:hover{text-decoration:underline}
 
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
   gap:10px 18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
@@ -407,6 +417,7 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div class="tip" id="tip" hidden></div>
         <div class="scalebar"><span id="scaleLine"></span><em id="scaleTxt"></em></div>
         <div class="mapempty" id="mapempty" hidden></div>
+        <div class="mapactivate" id="mapActivateHint">Click to interact</div>
       </div>
     </div>
 
@@ -566,6 +577,59 @@ function inBoxOK(lon,lat){ var u=UTM13(lon,lat);
    box is convex, so requiring every vertex inside guarantees the whole feature is
    inside - no partial leakage outside the box is possible either way. */
 function ringInBoxOK(r){ return (r||[]).length>0 && (r||[]).every(function(p){ return inBoxOK(p[0],p[1]); }); }
+
+/* Box clip for Lakes/Highways, added 2026-09-13, replacing the all-or-nothing
+   ringInBoxOK test above for these two layers specifically (ringInBoxOK/inBoxOK stay
+   as they were for everything that still uses them - places, the manual town list).
+   ringInBoxOK required EVERY vertex inside the box or it dropped the WHOLE feature -
+   confirmed live this was silently deleting entire major lakes and rivers whenever
+   even one point of a long, irregular shoreline strayed past a box edge. This clips
+   the ring/line to the box instead (Sutherland-Hodgman, one straight cut per edge) so
+   a feature that's mostly inside renders trimmed cleanly at the boundary rather than
+   disappearing. Uses bisect1d() (already defined above for the UTM grid ticks). */
+function utmE_(p){return UTM13(p[0],p[1])[0];}
+function utmN_(p){return UTM13(p[0],p[1])[1];}
+function clipParam_(prev,cur,coordFn,thresh){
+  return bisect1d(function(tt){return coordFn([prev[0]+(cur[0]-prev[0])*tt,prev[1]+(cur[1]-prev[1])*tt]);},0,1,thresh);
+}
+function clipRingEdge_(poly,coordFn,cmp,thresh){
+  if(!poly.length)return [];
+  var out=[],prev=poly[poly.length-1],prevIn=cmp(coordFn(prev));
+  for(var i=0;i<poly.length;i++){
+    var cur=poly[i],curIn=cmp(coordFn(cur));
+    if(curIn!==prevIn){var t=clipParam_(prev,cur,coordFn,thresh);
+      if(t!==null)out.push([prev[0]+(cur[0]-prev[0])*t,prev[1]+(cur[1]-prev[1])*t]);}
+    if(curIn)out.push(cur);
+    prev=cur;prevIn=curIn;}
+  return out;
+}
+function clipRingToBox(ring){
+  var p=ring;
+  p=clipRingEdge_(p,utmE_,function(v){return v>=BOX_E_MIN;},BOX_E_MIN); if(p.length<3)return [];
+  p=clipRingEdge_(p,utmE_,function(v){return v<=BOX_E_MAX;},BOX_E_MAX); if(p.length<3)return [];
+  p=clipRingEdge_(p,utmN_,function(v){return v>=BOX_N_MIN;},BOX_N_MIN); if(p.length<3)return [];
+  p=clipRingEdge_(p,utmN_,function(v){return v<=BOX_N_MAX;},BOX_N_MAX);
+  return p;
+}
+function clipLineEdge_(pts,coordFn,cmp,thresh){
+  if(!pts.length)return [];
+  var out=[],prev=null,prevIn=null;
+  for(var i=0;i<pts.length;i++){
+    var cur=pts[i],curIn=cmp(coordFn(cur));
+    if(prev!==null&&curIn!==prevIn){var t=clipParam_(prev,cur,coordFn,thresh);
+      if(t!==null)out.push([prev[0]+(cur[0]-prev[0])*t,prev[1]+(cur[1]-prev[1])*t]);}
+    if(curIn)out.push(cur);
+    prev=cur;prevIn=curIn;}
+  return out;
+}
+function clipLineToBox(line){
+  var p=line;
+  p=clipLineEdge_(p,utmE_,function(v){return v>=BOX_E_MIN;},BOX_E_MIN); if(p.length<2)return [];
+  p=clipLineEdge_(p,utmE_,function(v){return v<=BOX_E_MAX;},BOX_E_MAX); if(p.length<2)return [];
+  p=clipLineEdge_(p,utmN_,function(v){return v>=BOX_N_MIN;},BOX_N_MIN); if(p.length<2)return [];
+  p=clipLineEdge_(p,utmN_,function(v){return v<=BOX_N_MAX;},BOX_N_MAX);
+  return p;
+}
 var TENURE_F=(B.tenure||[]).filter(function(t){ return !isSGO(t.o)&&ringNorthOK(t.r); });
 var CLAIMS_F=(B.claims||[]).filter(function(c){ return !isSGO(c.o)&&northOK(c.x,c.y); });
 
@@ -848,7 +912,7 @@ TENURE_F.forEach(function(t){ var pr=projRing(t.r,true);
     lapseSoon:lapseSoon, lapseSoon2:lapseSoon2, dep:dep}); });
 CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
   P.claims.push({p:p,ll:[c.x,c.y],d:c.d,o:c.o,e:c.e,corp:!!c.corp,orphan:!(c.d&&TENIDS[c.d])}); });
-(B.lakes||[]).forEach(function(l){ if(!ringInBoxOK(l.r))return; P.lakes.push({r:projRing(l.r,false).r,n:l.n}); });
+(B.lakes||[]).forEach(function(l){ var cr=clipRingToBox(l.r); if(cr.length<3)return; P.lakes.push({r:projRing(cr,false).r,n:l.n,a:l.a}); });
 (B.deposits||[]).forEach(function(d){ if(!northOK(d.x,d.y))return; var p=PROJ(d.x,d.y); ext(p);
   P.deps.push({p:p,ll:[d.x,d.y],n:d.n,s:d.s,prod:d.p,id:d.id}); });
 /* SMDI uranium occurrences (added 2026-09-09) - the full Mineral Deposits Index
@@ -890,7 +954,7 @@ CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
   if(!inBoxOK(t[1],t[2]))return;
   var p=PROJ(t[1],t[2]); ext(p);
   P.places.push({p:p,ll:[t[1],t[2]],n:t[0],k:'Town'}); });
-(B.highways||[]).forEach(function(h){ if(!ringInBoxOK(h.p))return; P.hw.push({r:projRing(h.p,true).r,n:h.n}); });
+(B.highways||[]).forEach(function(h){ var cl=clipLineToBox(h.p); if(cl.length<2)return; P.hw.push({r:projRing(cl,true).r,n:h.n}); });
 (B.footprints||[]).forEach(function(f){ if(!ringNorthOK(f.r))return;
   P.foots.push({r:bufferRing(projRing(f.r,true).r,FOOT_BUFFER_KM),a:f.a}); });
 (B.conductors||[]).forEach(function(c){ if(!ringNorthOK(c.p))return; var pr=projRing(c.p,true);
@@ -1005,7 +1069,7 @@ var LAYERS=[
  {k:'cond',  label:'EM Conductors', color:'#bebebe', get:function(){return P.conds.length;}},
  {k:'restricted',label:'Verboten',color:'#ffffff', get:function(){return P.restricted.length;}},
  {k:'smdi',  label:'SMDI Grade', color:'#f97316', get:function(){return P.smdi.length;}},
- {k:'heat',  label:'Boulder Heat',  color:'#e6b40a', get:function(){return B.boulder_total||0;}},
+ {k:'heat',  label:'Boulder Heat',  color:'#e6b40a', get:function(){return P.heat.length;}},
  {k:'geochem',label:'Lake & Soil Heat', color:'#2dd4bf', get:function(){return P.geochem.length;}}
 ];
 /* Heat-style layers (density/interpolated surfaces rather than discrete features)
@@ -1115,6 +1179,31 @@ function draw(){
     ctx.fillStyle='rgba(61,111,138,.38)';ctx.strokeStyle='rgba(61,111,138,.6)';ctx.lineWidth=.7;
     P.lakes.forEach(function(l){ctx.beginPath();poly(l.r,true);ctx.fill();ctx.stroke();});
     ctx.restore();}
+
+    /* Lake name labels, added 2026-09-12, gate reworked 2026-09-13 - halo-background
+       text technique the Towns layer already uses. Label point is the bounding-box
+       centre of the lake's own ring in projected space. Gated on the on-screen scale
+       bar's own "<=25 km" reading (currentScaleKm(), defined below near drawScale())
+       so every named lake, Lake Athabasca included, waits for the same zoom - no more
+       "always show if big" exception, which used to leave Lake Athabasca's label on
+       at every zoom level. */
+    if(ON.lake&&P.lakes.length){
+      var lakeBig=currentScaleKm()<=25;
+      ctx.save();ctx.font='10.5px "IBM Plex Sans",system-ui,sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      P.lakes.forEach(function(l){
+        var nm=(l.n||'').trim();if(!nm)return;
+        if(!lakeBig)return;
+        var xs=l.r.map(function(p){return p[0];}),ys=l.r.map(function(p){return p[1];});
+        var cxp=[(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2,
+                 (Math.min.apply(null,ys)+Math.max.apply(null,ys))/2];
+        var x=sx(cxp),y=sy(cxp);
+        if(x<-60||x>W+60||y<-40||y>H+40)return;
+        var w=ctx.measureText(nm).width;
+        ctx.fillStyle=surf;ctx.globalAlpha=.72;
+        ctx.fillRect(x-w/2-4,y-7,w+8,14);ctx.globalAlpha=1;
+        ctx.fillStyle='rgba(179,217,237,.95)';ctx.fillText(nm,x,y);});
+      ctx.restore();}
 
   if(ON.basin&&P.basin.length){ctx.save();
     ctx.fillStyle=tok('--basinfill','rgba(217,119,87,.14)');
@@ -1252,6 +1341,34 @@ function draw(){
     ctx.lineWidth=Math.max(1,Math.min(2.6,view.s*.02));ctx.lineJoin='round';
     ctx.setLineDash([Math.max(4,view.s*.05),Math.max(3,view.s*.035)]);ctx.beginPath();
     P.hw.forEach(function(h){poly(h.r,false);});ctx.stroke();ctx.setLineDash([]);ctx.restore();}
+
+    /* Highway route labels, added 2026-09-12, gate reworked 2026-09-13 - same
+       halo-background technique as lake/town labels. Highways are stored as many
+       short segments per route, so this groups segments by name once per frame and
+       draws exactly one label per named route, at whichever segment sits closest to
+       the visible map's centre (keeps the label roughly centred as you pan). Same
+       25 km scale-bar gate as lake names. */
+    if(ON.hw&&P.hw.length&&currentScaleKm()<=25){
+      var hwGroups={};
+      P.hw.forEach(function(h){var nm=(h.n||'').trim();if(!nm)return;
+        (hwGroups[nm]=hwGroups[nm]||[]).push(h);});
+      ctx.save();ctx.font='600 10px "IBM Plex Mono",ui-monospace,monospace';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      Object.keys(hwGroups).forEach(function(nm){
+        var best=null,bd=Infinity;
+        hwGroups[nm].forEach(function(h){
+          var mid=h.r[Math.floor(h.r.length/2)];
+          var x=sx(mid),y=sy(mid);
+          if(x<16||x>W-16||y<16||y>H-16)return;
+          var d=(x-W/2)*(x-W/2)+(y-H/2)*(y-H/2);
+          if(d<bd){bd=d;best=[x,y];}});
+        if(!best)return;
+        var w=ctx.measureText(nm).width;
+        ctx.fillStyle=surf;ctx.globalAlpha=.78;
+        ctx.fillRect(best[0]-w/2-4,best[1]-7,w+8,14);ctx.globalAlpha=1;
+        ctx.fillStyle=tok('--hwline','rgba(255,255,255,.9)');
+        ctx.fillText(nm,best[0],best[1]);});
+      ctx.restore();}
 
   if(ON.lapse){var lapseTen=P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;});
     if(lapseTen.length){ctx.save();
@@ -1462,6 +1579,17 @@ function draw(){
     ctx.restore();}
   drawScale();
 }
+/* Shared with drawScale() below - added 2026-09-13 so lake/highway name labels can
+   gate on the same rounded "25 km" reading the on-screen scale bar shows. Same
+   rounding rule as the scale bar itself: the largest of [10,25,50,100,200,500] whose
+   bar would still render under 150px wide at the current zoom. */
+function currentScaleKm(){
+  var pa=PROJ(-106,58),pb=PROJ(-105,58);
+  var pxDeg=Math.abs(sx(pb)-sx(pa)),kmDeg=km([-106,58],[-105,58]);
+  var t=[10,25,50,100,200,500],ch=t[0];
+  for(var i=t.length-1;i>=0;i--){if(t[i]/kmDeg*pxDeg<150){ch=t[i];break;}}
+  return ch;
+}
 function drawScale(){var el=document.getElementById('scaleLine'),tx=document.getElementById('scaleTxt');
   if(!el)return;var pa=PROJ(-106,58),pb=PROJ(-105,58);
   var pxDeg=Math.abs(sx(pb)-sx(pa)),kmDeg=km([-106,58],[-105,58]);
@@ -1581,7 +1709,22 @@ function showTip(h,mx,my){
   tip.style.left=Math.max(4,L)+'px';tip.style.top=Math.max(4,T)+'px';}
 
 /* ---------- events ---------- */
-var drag=null,MS={on:false,pts:[],hover:null};
+var drag=null,MS={on:false,pts:[],hover:null},mapActive=false;
+/* Click-to-interact gate, added 2026-09-12/13: the map used to hijack every wheel
+   scroll that merely passed over it. Now it stays passive - wheel scrolls the PAGE,
+   not the map - until the visitor clicks it once; a click outside the whole map card
+   (canvas AND the legend columns on either side, widened 2026-09-13) puts it back to
+   sleep. Panning/hover/click work immediately either way - only wheel checks this. */
+function setMapActive(v){
+  mapActive=v;
+  var hintEl=document.getElementById('mapActivateHint');
+  if(hintEl)hintEl.hidden=v;
+}
+var mapCard=document.querySelector('.mapcard')||stage;
+document.addEventListener('pointerdown',function(e){
+  if(mapCard.contains(e.target)){ if(!mapActive)setMapActive(true); }
+  else if(mapActive){ setMapActive(false); }
+},true);
 function evp(e){var r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
 function invert(mx,my){var lon=-106,lat=58;
   for(var i=0;i<40;i++){var p=PROJ(lon,lat),px=sx(p),py=sy(p);
@@ -1603,7 +1746,9 @@ function invert(mx,my){var lon=-106,lat=58;
    never moved, so there's no ambiguity about what was clicked. A pointerdown that
    does NOT start on a marker still pans exactly as before - only marker hits change
    behaviour. */
-cv.addEventListener('pointerdown',function(e){try{cv.setPointerCapture(e.pointerId);
+cv.addEventListener('pointerdown',function(e){try{
+  if(!mapActive)setMapActive(true);
+  cv.setPointerCapture(e.pointerId);
   if(MS.on){var q=evp(e);if(MS.pts.length>=2)MS.pts=[];MS.pts.push(invert(q[0],q[1]));draw();measOut();return;}
   var q0=evp(e),h0=pick(q0[0],q0[1]);
   var hit=(h0&&((h0.t==='dep'&&h0.o.id)||(h0.t==='smdi'&&h0.o.id)||(h0.t==='news')))?h0:null;
@@ -1668,7 +1813,9 @@ cv.addEventListener('pointerup',function(e){try{
 });
 cv.addEventListener('pointercancel',endDrag);
 cv.addEventListener('pointerleave',function(){tip.hidden=true;endDrag();});
-cv.addEventListener('wheel',function(e){e.preventDefault();var q=evp(e),f=Math.pow(1.0015,-e.deltaY);
+cv.addEventListener('wheel',function(e){
+  if(!mapActive)return; /* let the page scroll normally - see setMapActive above */
+  e.preventDefault();var q=evp(e),f=Math.pow(1.0015,-e.deltaY);
   var ns=Math.max(home.s*.6,Math.min(home.s*260,view.s*f)),k=ns/view.s;
   view.tx=q[0]-(q[0]-view.tx)*k;view.ty=q[1]-(q[1]-view.ty)*k;view.s=ns;draw();},{passive:false});
 function measOut(){var el=document.getElementById('measOut');if(!el)return;
@@ -1900,6 +2047,33 @@ if(nlOpenBtn) nlOpenBtn.addEventListener('click', nlOpen);
 if(nlCancelBtn) nlCancelBtn.addEventListener('click', nlClose);
 if(nlOverlay) nlOverlay.addEventListener('click', function(e){ if(e.target===nlOverlay) nlClose(); });
 document.addEventListener('keydown', function(e){ if(e.key==='Escape' && nlOverlay && !nlOverlay.hidden) nlClose(); });
+
+
+/* Rank-badge-to-map linking, added 2026-09-12: numbered rank badges in the news
+   list link to their waypoint on the map. Colour-matches the rank digit to the
+   waypoint's own star colour, then click jumps the map to that waypoint and
+   reopens its tooltip via showTip(). Items with no map anchor stay plain text. */
+function panToWaypoint(w){
+  if(!home)return;
+  if(!mapActive)setMapActive(true);
+  var targetS=Math.max(view.s,home.s*4);
+  view.tx=W/2-w.p[0]*targetS; view.ty=H/2-w.p[1]*targetS; view.s=targetS;
+  draw();
+  if(stage&&stage.scrollIntoView)stage.scrollIntoView({behavior:'smooth',block:'center'});
+  showTip({t:'news',o:w},sx(w.p),sy(w.p));
+}
+(function(){
+  var ALLNEWS=NEWSG.concat(NEWSX);
+  document.querySelectorAll('.news .item').forEach(function(it){
+    var rk=it.querySelector('.rank'); if(!rk)return;
+    var num=parseInt(rk.textContent,10); if(!num)return;
+    var w=null;
+    for(var i=0;i<ALLNEWS.length;i++){if(ALLNEWS[i].num===num){w=ALLNEWS[i];break;}}
+    if(!w)return;
+    rk.style.color=w.col; rk.classList.add('linked'); rk.title='Show on map';
+    rk.addEventListener('click',function(){panToWaypoint(w);});
+  });
+})();
 
 window.addEventListener('resize',resize);
 resize();
