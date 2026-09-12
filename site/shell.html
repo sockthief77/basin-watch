@@ -145,6 +145,12 @@ h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
    cooler violet, no glow - legible but clearly a lesser-confidence figure. */
 .g-assay{font-family:"IBM Plex Mono",monospace;font-weight:700;color:#F2C14E;
   text-shadow:0 0 10px rgba(242,193,78,.45);letter-spacing:.01em;word-spacing:-.3em}
+/* Fresh (this release's own) headline assay result - green, matching the map's Grade
+   Releases star/rank-badge colour. Added 2026-09-13. .g-assay (above, gold) stays the
+   colour for a historical/prior-drilling figure quoted for context - do not repaint
+   existing historical spans green when adding this class to a new edition's own result. */
+.g-assay-fresh{font-family:"IBM Plex Mono",monospace;font-weight:700;color:#00e64d;
+  text-shadow:0 0 10px rgba(0,230,77,.45);letter-spacing:.01em;word-spacing:-.3em}
 .g-cps{font-family:"IBM Plex Mono",monospace;font-style:italic;font-weight:500;
   color:var(--cvv);word-spacing:-.3em}
 
@@ -1028,14 +1034,16 @@ var ANCUNC={collar:0,deposit:1.5,claims:6,figure:2};
    waypoint layer reads as one thing sitting on top of the map, and the company is named on
    hover. Grade stars stay bright green. */
 var NEWSXCOL='#ffe600';
+var NEWSDCOL='#B295DC'; /* 2026-09-13: Drill Results (fresh cps, ty==='drill') - matches .g-cps prose colour */
 (B.news||[]).forEach(function(w){ if(!northOK(w.x,w.y))return; var p=PROJ(w.x,w.y); ext(p);
   var ty=w.ty||w.t||'grade', an=w.anc||'deposit';
   P.news.push({p:p,ll:[w.x,w.y],n:w.n,co:w.co,g:w.g,when:w.when,url:w.url,note:w.note,
     ty:ty, anc:an, unc:(w.unc==null?(ANCUNC[an]||0):+w.unc),
     num:(w.num==null?null:+w.num),
-    col:(ty==='grade'?'#00e64d':NEWSXCOL)}); });
+    col:(ty==='grade'?'#00e64d':ty==='drill'?NEWSDCOL:NEWSXCOL)}); });
 var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
-var NEWSX=P.news.filter(function(w){return w.ty!=='grade';});
+var NEWSD=P.news.filter(function(w){return w.ty==='drill';});
+var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='drill';});
 /* One star for every waypoint, whatever its type - per explicit instruction 2026-09-08. A per-type glyph set
    (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
    by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
@@ -1060,6 +1068,7 @@ var LAYERS=[
  {k:'lapse', label:'Lapsing Within 7 Days',color:'#ff1493',get:function(){return P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;}).length;}},
  {k:'lapse2',label:'Lapsing 8-14 Days',color:'#ff85c2',get:function(){return P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;}).length;}},
  {k:'news',  label:'Grade Releases',  color:'#00e64d', get:function(){return NEWSG.length;}},
+ {k:'newsd', label:'Drill Results',   color:'#B295DC', get:function(){return NEWSD.length;}},
  {k:'newsx', label:'Other News',      color:'#ffe600', get:function(){return NEWSX.length;}},
  {k:'tenure',label:'Tenure (SK+AB)', color:SLOT[0],  get:function(){return P.tenure.length+P.ab.length;}},
  {k:'lapall',label:'Lapsed Claims', color:'#f5921e', get:function(){return P.lapreg.length;}},
@@ -1516,8 +1525,8 @@ function draw(){
     P.mines.forEach(function(m){var x=sx(m.p),y=sy(m.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
       var sMin=3.6,s=Math.min(6.0,sMin*mineZoom),sb=s*0.72;
       ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x+s,y+sb);ctx.lineTo(x-s,y+sb);ctx.closePath();
-      ctx.fillStyle=m.ml?'rgba(124,58,237,.97)':'rgba(167,139,250,.92)';ctx.fill();
-      ctx.strokeStyle='#171310';ctx.lineWidth=1.3;ctx.stroke();});
+      ctx.fillStyle='#000000';ctx.fill(); /* 2026-09-13: black fill/white outline, explicit request */
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=1.3;ctx.stroke();});
     ctx.restore();}
 
   if(ON.place&&P.places.length){ctx.save();
@@ -1536,7 +1545,7 @@ function draw(){
      ON.newsx everything else. The dashed ring is the position's stated uncertainty in
      real kilometres, so it grows as you zoom in - a claim-block centroid stops looking
      like a drill collar the moment the scale makes the difference matter. */
-  if((ON.news||ON.newsx)&&P.news.length){ctx.save();
+  if((ON.news||ON.newsx||ON.newsd)&&P.news.length){ctx.save();
     var pa9=PROJ(-106,58),pb9=PROJ(-105,58);
     var pxkm=Math.abs(sx(pb9)-sx(pa9))/km([-106,58],[-105,58]);
     /* Other News stars are painted FIRST so the Grade stars always land on top of them -
@@ -1546,7 +1555,7 @@ function draw(){
        marker-width at basin zoom), so this is a real collision, not a hypothetical. Keep
        the two passes in this order; pick() below walks them the same way so the marker you
        click is the one you can see. */
-    [[NEWSX,ON.newsx],[NEWSG,ON.news]].forEach(function(pass){
+    [[NEWSX,ON.newsx],[NEWSD,ON.newsd],[NEWSG,ON.news]].forEach(function(pass){
       if(!pass[1])return;
       pass[0].forEach(function(w){
         var x=sx(w.p),y=sy(w.p);if(x<-60||x>W+60||y<-60||y>H+60)return;
@@ -1619,6 +1628,7 @@ function pick(mx,my){
      star and an Other News star coincide the hover reports the one drawn on top. */
   function ptTop(p,mk){var dx=sx(p)-mx,dy=sy(p)-my,d=dx*dx+dy*dy;if(d<=bd){bd=d;best=mk();}}
   if(ON.newsx)NEWSX.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
+  if(ON.newsd)NEWSD.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
   if(ON.news)NEWSG.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
   if(ON.mine)P.mines.forEach(function(m){pt(m.p,function(){return{t:'mine',o:m};});});
   if(ON.dep)P.deps.forEach(function(d){if(!F.status||d.s===F.status)pt(d.p,function(){return{t:'dep',o:d};});});

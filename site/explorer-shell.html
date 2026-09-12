@@ -884,14 +884,16 @@ var ANCUNC={collar:0,deposit:1.5,claims:6,figure:2};
    waypoint layer reads as one thing sitting on top of the map, and the company is named on
    hover. Grade stars stay bright green. */
 var NEWSXCOL='#ffe600';
+var NEWSDCOL='#B295DC'; /* 2026-09-13: Drill Results (fresh cps, ty==='drill') - matches .g-cps prose colour */
 (B.news||[]).forEach(function(w){ if(!northOK(w.x,w.y))return; var p=PROJ(w.x,w.y); ext(p);
   var ty=w.ty||w.t||'grade', an=w.anc||'deposit';
   P.news.push({p:p,ll:[w.x,w.y],n:w.n,co:w.co,g:w.g,when:w.when,url:w.url,note:w.note,
     ty:ty, anc:an, unc:(w.unc==null?(ANCUNC[an]||0):+w.unc),
     num:(w.num==null?null:+w.num),
-    col:(ty==='grade'?'#00e64d':NEWSXCOL)}); });
+    col:(ty==='grade'?'#00e64d':ty==='drill'?NEWSDCOL:NEWSXCOL)}); });
 var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
-var NEWSX=P.news.filter(function(w){return w.ty!=='grade';});
+var NEWSD=P.news.filter(function(w){return w.ty==='drill';});
+var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='drill';});
 /* One star for every waypoint, whatever its type - per explicit instruction 2026-09-08. A per-type glyph set
    (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
    by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
@@ -915,6 +917,7 @@ var LAYERS=[
  {k:'claim', label:'New Claims',    color:'#ffffff', get:function(){return P.claims.length;}},
  {k:'lapse', label:'Lapsing Within 7 Days',color:'#ff1493',get:function(){return P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;}).length;}},
  {k:'news',  label:'Grade Releases',  color:'#00e64d', get:function(){return NEWSG.length;}},
+ {k:'newsd', label:'Drill Results',   color:'#B295DC', get:function(){return NEWSD.length;}},
  {k:'newsx', label:'Other News',      color:'#ffe600', get:function(){return NEWSX.length;}},
  {k:'tenure',label:'Tenure (SK+AB)', color:SLOT[0],  get:function(){return P.tenure.length+P.ab.length;}},
  {k:'lapall',label:'Lapsed Claims', color:'#f5921e', get:function(){return P.lapreg.length;}},
@@ -967,7 +970,7 @@ ON.lake=true; ON.basin=true; ON.hw=true; ON.place=true;
 
 /* ---------- view ---------- */
 var view={s:1,tx:0,ty:0},W=0,H=0,DPR=1,home=null;
-var HOMEBOX=[-261.47,-310.64,199.69,38.50]; /* [minx,miny,maxx,maxy], fixed reset-view extent - a hand-set framing, NOT the data extent and no longer basin_layers.py's working bounding box. Originally [-343.74,-384.28,259.80,72.69] (the UTM13N E100,000-700,000 / N6,250,000-6,700,000 filter box); reframed 2026-09-09 night to a tighter view picked by hand and screenshotted - ~1.31x closer, centred on the basin proper. Box was back-solved from that screenshot so fit() (pad=26, min-of-both-axes) reproduces it: five town markers were fitted to the LCC PROJ() to recover scale/translation, then bw=(W-52)/s, bh=(H-52)/s about the observed centre. Do not "restore" the filter-box values. */
+var HOMEBOX=[-298.27,-319.38,224.52,55.61]; /* [minx,miny,maxx,maxy], fixed reset-view extent - a hand-set framing, NOT the data extent and no longer basin_layers.py's working bounding box. Fixed 2026-09-13: this file had been stuck on the 2026-09-09 interim box [-261.47,-310.64,199.69,38.50] the whole time site/shell.html and both claude.ai pages moved on to this one (2026-09-11's "same centering, same zoom amount" reframe) - Reset View on basinwatch.ca/explorer was visibly looser/different than Basin Watch's own map and than the reference screenshot until this was caught. Now matches site/shell.html exactly; keep both in sync if this is ever changed again. */
 function fit(){var pad=26,bw=Math.max(1,HOMEBOX[2]-HOMEBOX[0]),bh=Math.max(1,HOMEBOX[3]-HOMEBOX[1]);
   view.s=Math.min((W-pad*2)/bw,(H-pad*2)/bh);
   view.tx=W/2-((HOMEBOX[0]+HOMEBOX[2])/2)*view.s; view.ty=H/2-((HOMEBOX[1]+HOMEBOX[3])/2)*view.s;
@@ -1332,8 +1335,8 @@ function draw(){
     P.mines.forEach(function(m){var x=sx(m.p),y=sy(m.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
       var sMin=3.6,s=Math.min(6.0,sMin*mineZoom),sb=s*0.72;
       ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x+s,y+sb);ctx.lineTo(x-s,y+sb);ctx.closePath();
-      ctx.fillStyle=m.ml?'rgba(124,58,237,.97)':'rgba(167,139,250,.92)';ctx.fill();
-      ctx.strokeStyle='#171310';ctx.lineWidth=1.3;ctx.stroke();});
+      ctx.fillStyle='#000000';ctx.fill(); /* 2026-09-13: black fill/white outline, explicit request */
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=1.3;ctx.stroke();});
     ctx.restore();}
 
   if(ON.place&&P.places.length){ctx.save();
@@ -1352,7 +1355,7 @@ function draw(){
      ON.newsx everything else. The dashed ring is the position's stated uncertainty in
      real kilometres, so it grows as you zoom in - a claim-block centroid stops looking
      like a drill collar the moment the scale makes the difference matter. */
-  if((ON.news||ON.newsx)&&P.news.length){ctx.save();
+  if((ON.news||ON.newsx||ON.newsd)&&P.news.length){ctx.save();
     var pa9=PROJ(-106,58),pb9=PROJ(-105,58);
     var pxkm=Math.abs(sx(pb9)-sx(pa9))/km([-106,58],[-105,58]);
     /* Other News stars are painted FIRST so the Grade stars always land on top of them -
@@ -1362,7 +1365,7 @@ function draw(){
        marker-width at basin zoom), so this is a real collision, not a hypothetical. Keep
        the two passes in this order; pick() below walks them the same way so the marker you
        click is the one you can see. */
-    [[NEWSX,ON.newsx],[NEWSG,ON.news]].forEach(function(pass){
+    [[NEWSX,ON.newsx],[NEWSD,ON.newsd],[NEWSG,ON.news]].forEach(function(pass){
       if(!pass[1])return;
       pass[0].forEach(function(w){
         var x=sx(w.p),y=sy(w.p);if(x<-60||x>W+60||y<-60||y>H+60)return;
@@ -1435,6 +1438,7 @@ function pick(mx,my){
      star and an Other News star coincide the hover reports the one drawn on top. */
   function ptTop(p,mk){var dx=sx(p)-mx,dy=sy(p)-my,d=dx*dx+dy*dy;if(d<=bd){bd=d;best=mk();}}
   if(ON.newsx)NEWSX.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
+  if(ON.newsd)NEWSD.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
   if(ON.news)NEWSG.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
   if(ON.mine)P.mines.forEach(function(m){pt(m.p,function(){return{t:'mine',o:m};});});
   if(ON.dep)P.deps.forEach(function(d){if(!F.status||d.s===F.status)pt(d.p,function(){return{t:'dep',o:d};});});
