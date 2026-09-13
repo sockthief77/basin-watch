@@ -52,3 +52,4 @@ Seeded 2026-09-09 from the live pages then at
 `claude.ai/code/artifact/47766502-5368-43a1-9a1e-6e007f270bbc` (Basin Explorer), split into
 template + data and verified to render pixel-identical to both live pages with zero
 JS errors before being committed here.
+<!-- write-access test, safe to delete -->
