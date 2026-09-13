@@ -152,8 +152,9 @@ h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
 .g-assay-fresh{font-family:"IBM Plex Mono",monospace;font-weight:700;color:#00e64d;
   text-shadow:0 0 10px rgba(0,230,77,.45);letter-spacing:.01em;word-spacing:-.3em}
 .g-cps{font-family:"IBM Plex Mono",monospace;font-style:italic;font-weight:500;
-  color:#C9A2FF;word-spacing:-.3em} /* brightened 2026-09-13, was var(--cvv)/#B295DC - decoupled from
-  --cvv (a holder tenure-fill colour, unrelated) so this can move independently and match NEWSDCOL */
+  color:#B266FF;word-spacing:-.3em} /* brightened further 2026-09-13 (2nd pass), was #C9A2FF/var(--cvv)/
+  #B295DC - decoupled from --cvv (a holder tenure-fill colour, unrelated) so this can move
+  independently and match NEWSDCOL */
 
 /* archive + footer */
 .arch{background:var(--surface);border:1px solid var(--line);padding:2px 0;margin-bottom:16px}
@@ -1041,16 +1042,21 @@ var ANCUNC={collar:0,deposit:1.5,claims:6,figure:2};
    waypoint layer reads as one thing sitting on top of the map, and the company is named on
    hover. Grade stars stay bright green. */
 var NEWSXCOL='#ffe600';
-var NEWSDCOL='#C9A2FF'; /* brightened 2026-09-13, was #B295DC - too low-contrast on the map */ /* 2026-09-13: Drill Results (fresh cps, ty==='drill') - matches .g-cps prose colour */
+var NEWSDCOL='#B266FF'; /* brightened further 2026-09-13 (2nd pass) - was #C9A2FF, then #B295DC originally */
+var NEWSGEOCOL='#FF7A1A'; /* added 2026-09-13 - geophysics/survey releases get their own bright orange star, but stay folded into the Other News TOGGLE (not a separate legend row) so the layer bar doesn't grow a 4th news entry */ /* 2026-09-13: Drill Results (fresh cps, ty==='drill') - matches .g-cps prose colour */
 (B.news||[]).forEach(function(w){ if(!northOK(w.x,w.y))return; var p=PROJ(w.x,w.y); ext(p);
   var ty=w.ty||w.t||'grade', an=w.anc||'deposit';
   P.news.push({p:p,ll:[w.x,w.y],n:w.n,co:w.co,g:w.g,when:w.when,url:w.url,note:w.note,
     ty:ty, anc:an, unc:(w.unc==null?(ANCUNC[an]||0):+w.unc),
     num:(w.num==null?null:+w.num),
-    col:(ty==='grade'?'#00e64d':ty==='cps'?NEWSDCOL:NEWSXCOL)}); }); /* 2026-09-13: purple is keyed on ty==='cps' now, not 'drill' - 'drill' (program starts/permits/mobilization, no reading yet) correctly falls to Other News yellow; only a release whose own content IS a fresh cps reading gets purple */
+    col:(ty==='grade'?'#00e64d':ty==='cps'?NEWSDCOL:ty==='geo'?NEWSGEOCOL:NEWSXCOL)}); }); /* 2026-09-13 (2nd pass): geophysics/survey releases now get their own orange, everything else (drill mobilization/permit, financing, property deal, resource estimate) stays the Other News yellow catch-all */
 var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
 var NEWSD=P.news.filter(function(w){return w.ty==='cps';});
-var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='cps';});
+var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='cps';}); /* 2026-09-13 (2nd pass):
+  still one bucket/toggle (ON.newsx) for geo + every other non-grade/non-cps type - geo items just
+  carry their own orange w.col already, set above, so the SAME toggle draws two colours without a
+  separate legend row or ON flag for geo specifically. Keeps the layer bar from growing a 4th
+  news entry per the explicit ask to keep it less busy. */
 /* One star for every waypoint, whatever its type - per explicit instruction 2026-09-08. A per-type glyph set
    (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
    by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
