@@ -1047,7 +1047,7 @@ function draw(){
   var line=tok('--line','#E8E6DE'),muted=tok('--muted','#6B6A66'),surf=tok('--surface','#fff');
 
   if(ON.lake&&P.lakes.length){ctx.save();
-    ctx.fillStyle='rgba(61,111,138,.38)';ctx.strokeStyle='rgba(61,111,138,.6)';ctx.lineWidth=.7;
+    ctx.fillStyle='rgba(61,111,138,.323)';ctx.strokeStyle='rgba(61,111,138,.51)';ctx.lineWidth=.7; /* 2026-09-13: 15% more translucent, was .38 fill / .6 stroke, explicit request */
     P.lakes.forEach(function(l){ctx.beginPath();poly(l.r,true);ctx.fill();ctx.stroke();});
     ctx.restore();}
 
