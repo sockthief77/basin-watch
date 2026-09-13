@@ -2085,7 +2085,12 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape' && nlOverl
    reopens its tooltip via showTip(). Items with no map anchor stay plain text. */
 function panToWaypoint(w){
   if(!home)return;
-  if(!mapActive)setMapActive(true);
+  /* 2026-09-13: deliberately does NOT call setMapActive(true) - explicit request. Clicking
+     a rank number pans/zooms the map and scrolls it into view, but leaves the map passive
+     (wheel still scrolls the PAGE) until the visitor clicks directly on the map itself. The
+     old behavior armed the map on this click, which trapped anyone trying to scroll back up
+     to the list right after landing on the map - the page's wheel handler would zoom the map
+     instead of scrolling past it. */
   var targetS=Math.max(view.s,home.s*4);
   view.tx=W/2-w.p[0]*targetS; view.ty=H/2-w.p[1]*targetS; view.s=targetS;
   draw();
