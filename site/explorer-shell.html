@@ -909,7 +909,7 @@ var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='cps';}); /* 2
    (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
    by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
    by shape. Don't reintroduce shape encoding without asking. */
-function newsGlyph(x,y,ty){var r=7.14,r2=r*.42;ctx.beginPath();
+function newsGlyph(x,y,ty){var r=7.854,r2=r*.42;ctx.beginPath(); /* 2026-09-13: 10% larger (was 7.14), explicit request - no zoom-scaling added, same flat size at every zoom as before */
   for(var i=0;i<10;i++){var rad=i%2===0?r:r2,a=-Math.PI/2+i*Math.PI/5;
     var px=x+rad*Math.cos(a),py=y+rad*Math.sin(a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
   ctx.closePath();}
@@ -927,6 +927,7 @@ if(!hasData){minx=-400;maxx=400;miny=-400;maxy=400;}
 var LAYERS=[
  {k:'claim', label:'New Claims',    color:'#ffffff', get:function(){return P.claims.length;}},
  {k:'lapse', label:'Lapsing Within 7 Days',color:'#ff1493',get:function(){return P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;}).length;}},
+ {k:'lapse2',label:'Lapsing 8-14 Days',color:'#ff85c2',get:function(){return P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;}).length;}}, /* added 2026-09-13 - was missing entirely from Explorer, present on Basin Watch since 2026-09-11 */
  {k:'news',  label:'Grade Releases',  color:'#00e64d', get:function(){return NEWSG.length;}},
  {k:'newsd', label:'Drill Results',   color:'#B295DC', get:function(){return NEWSD.length;}},
  {k:'newsx', label:'Other News',      color:'#ffe600', get:function(){return NEWSX.length;}},
@@ -975,13 +976,17 @@ ON.mine=false;
    any other line layer and drawn on every load before a viewer asked for it. Toggle
    it on any time from the layer bar. */
 ON.cond=false;
+ON.lapse2=false;
+/* Uranium Deposits off by default, added 2026-09-13 - explicit request. Toggle it on
+   any time from the layer bar. */
+ON.dep=false; /* added 2026-09-13 - see LAYERS note above */
 /* Major lakes, basin outline, highways and towns/settlements are permanent background context,
    2026-09-08 - no longer viewer-toggleable (see LAYERS above), always drawn. */
 ON.lake=true; ON.basin=true; ON.hw=true; ON.place=true;
 
 /* ---------- view ---------- */
 var view={s:1,tx:0,ty:0},W=0,H=0,DPR=1,home=null;
-var HOMEBOX=[-298.27,-319.38,224.52,55.61]; /* [minx,miny,maxx,maxy], fixed reset-view extent - a hand-set framing, NOT the data extent and no longer basin_layers.py's working bounding box. Fixed 2026-09-13: this file had been stuck on the 2026-09-09 interim box [-261.47,-310.64,199.69,38.50] the whole time site/shell.html and both claude.ai pages moved on to this one (2026-09-11's "same centering, same zoom amount" reframe) - Reset View on basinwatch.ca/explorer was visibly looser/different than Basin Watch's own map and than the reference screenshot until this was caught. Now matches site/shell.html exactly; keep both in sync if this is ever changed again. */
+var HOMEBOX=[-314.31,-315.45,193.79,0.29]; /* reframed 2026-09-13 (2nd time today) per a supplied screenshot - back-solved the same way as every prior reframe: Fond du Lac (-107.0138,59.3498) and Points North Landing (-104.0817,58.2703) fitted to PROJ() to recover scale/translation, then bw=(W-52)/s, bh=(H-52)/s about the observed centre. Verified by rebuilding and screenshotting: town positions land within a few % of the reference image. Do not "restore" earlier values. */
 function fit(){var pad=26,bw=Math.max(1,HOMEBOX[2]-HOMEBOX[0]),bh=Math.max(1,HOMEBOX[3]-HOMEBOX[1]);
   view.s=Math.min((W-pad*2)/bw,(H-pad*2)/bh);
   view.tx=W/2-((HOMEBOX[0]+HOMEBOX[2])/2)*view.s; view.ty=H/2-((HOMEBOX[1]+HOMEBOX[3])/2)*view.s;
@@ -1237,7 +1242,22 @@ function draw(){
         ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
         ctx.strokeStyle='rgba(255,20,147,.92)';
         /* Outline width reduced 30% from New Claims' equivalent stroke, 2026-09-08. */
-        ctx.lineWidth=Math.max(1.9,Math.min(3.8,view.s*.02205));ctx.stroke();});
+        ctx.lineWidth=Math.max(1.71,Math.min(3.42,view.s*.019845));ctx.stroke(); /* 2026-09-13: 10% thinner, was 1.9/3.8/.02205 */});
+      ctx.restore();}}
+
+  /* Lapsing 8-14 Days - added 2026-09-13, was missing entirely from Explorer even
+     though the data (t.lapseSoon2) and the toggle/legend row have existed since
+     2026-09-11 on Basin Watch. Same fill/outline treatment as the 7-day tier, lighter
+     pink. */
+  if(ON.lapse2){var lapse2Ten=P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;});
+    if(lapse2Ten.length){ctx.save();
+      lapse2Ten.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+        if(!visb(t.b))return;
+        var col=HCOL[shortHolder(t.o)]||OTHER;
+        ctx.beginPath();poly(t.r,true);
+        ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
+        ctx.strokeStyle='rgba(255,133,194,.92)';
+        ctx.lineWidth=Math.max(1.71,Math.min(3.42,view.s*.019845));ctx.stroke(); /* 2026-09-13: 10% thinner, was 1.9/3.8/.02205 */});
       ctx.restore();}}
 
   if(ON.tenure){ctx.save();
@@ -1352,11 +1372,15 @@ function draw(){
 
   if(ON.place&&P.places.length){ctx.save();
     ctx.font='10.5px "IBM Plex Sans",system-ui,sans-serif';ctx.textBaseline='middle';
-    var big=view.s>home.s*1.25;
+    /* 2026-09-13: label gate switched to the same <=25km scale-bar reading lake/highway
+       names use (was a home.s zoom multiplier, plus an always-on exception for the 4
+       manually-added towns) - explicit request, "same as the lakes." Icon (dot) is
+       unaffected by this gate and still shows at every zoom, just 10% smaller. */
+    var placeLabelsOn=currentScaleKm()<=25;
     P.places.forEach(function(s){var x=sx(s.p),y=sy(s.p);if(x<-40||x>W+40||y<-20||y>H+20)return;
-      ctx.beginPath();ctx.arc(x,y,3,0,6.2832);ctx.fillStyle=surf;ctx.fill();
+      ctx.beginPath();ctx.arc(x,y,2.7,0,6.2832);ctx.fillStyle=surf;ctx.fill(); /* 2026-09-13: 10% smaller, was 3 */
       ctx.strokeStyle=tok('--ink','#141413');ctx.lineWidth=1.5;ctx.stroke();
-      if(big||s.k==='Town'||s.k==='City'){
+      if(placeLabelsOn){
         ctx.fillStyle=surf;ctx.globalAlpha=.75;
         var w=ctx.measureText(s.n).width;ctx.fillRect(x+5,y-6,w+4,12);ctx.globalAlpha=1;
         ctx.fillStyle=tok('--ink','#141413');ctx.fillText(s.n,x+7,y);}});
@@ -1384,12 +1408,12 @@ function draw(){
         if(w.unc>0){var rr=Math.max(7,w.unc*pxkm);
           ctx.globalAlpha=al*.5;ctx.strokeStyle=w.col;ctx.lineWidth=1.1;ctx.setLineDash([3,3]);
           ctx.beginPath();ctx.arc(x,y,rr,0,6.2832);ctx.stroke();ctx.setLineDash([]);}
-        ctx.globalAlpha=al;ctx.fillStyle=w.col;ctx.strokeStyle=surf;ctx.lineWidth=1.3;
+        ctx.globalAlpha=al;ctx.fillStyle=w.col;ctx.strokeStyle=surf;ctx.lineWidth=1.43; /* 2026-09-13: scaled with the 10% larger star */
         newsGlyph(x,y,w.ty);ctx.fill();ctx.stroke();
         if(w.num!=null){var lbl=String(w.num);
-          ctx.font='700 8.4px "IBM Plex Mono",ui-monospace,monospace';
+          ctx.font='700 9.24px "IBM Plex Mono",ui-monospace,monospace'; /* 2026-09-13: 10% larger, was 8.4px */
           ctx.textAlign='center';ctx.textBaseline='middle';
-          var bx=x+7.6,by=y-7.6,hw=Math.max(5.5,ctx.measureText(lbl).width/2+3),hh=5.5;
+          var bx=x+8.36,by=y-8.36,hw=Math.max(6.05,ctx.measureText(lbl).width/2+3.3),hh=6.05; /* 2026-09-13: 10% larger throughout, was x+7.6/y-7.6/5.5/5.5/+3 */
           ctx.beginPath();
           if(ctx.roundRect){ctx.roundRect(bx-hw,by-hh,hw*2,hh*2,hh);}
           else{ctx.arc(bx,by,hh,0,6.2832);}
