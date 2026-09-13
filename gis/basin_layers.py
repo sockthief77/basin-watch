@@ -549,16 +549,43 @@ def main():
     # systematically disadvantages a long, narrow river against a round lake of the same
     # geographic significance - a river can be enormously important and still have a
     # small polygon footprint. Fix: any candidate whose own government-supplied name
-    # (LAKNAMEEN, via name_of() - NOT the gazetteer fallback, which only fires for
-    # candidates that already made the cut) contains "river" is pulled to the FRONT of
-    # the ranking, ahead of area-only sorting, so a named river competes for a guaranteed
-    # slot instead of only the slots an unnamed or lake-sized area would win it. This
-    # does not touch the gazetteer-naming or self-intersection logic below - a river
-    # candidate still has to pass both like everything else.
-    def _is_named_river(nm):
-        return "river" in (nm or "").lower()
-    lakes_ranked = (sorted([t for t in lakes_ranked if _is_named_river(t[1])], key=lambda t: -t[0])
-                    + sorted([t for t in lakes_ranked if not _is_named_river(t[1])], key=lambda t: -t[0]))
+    # (LAKNAMEEN, via name_of()) contains "river" is pulled to the FRONT of the ranking,
+    # ahead of area-only sorting, so a named river competes for a guaranteed slot instead
+    # of only the slots an unnamed or lake-sized area would win it.
+    #
+    # That fix still shipped without Clearwater River on the map (caught the same day,
+    # user-reported). Root cause: LAKNAMEEN is blank - a single space, not missing, see
+    # the gazetteer note above - for nearly every feature at this generalization tier,
+    # named rivers very much included, so the LAKNAMEEN-only check above almost never
+    # actually fired; it only worked for the handful of candidates that happened to carry
+    # a real LAKNAMEEN value. Clearwater River's own candidate ring has a blank LAKNAMEEN,
+    # so it never got flagged as a river pre-cut and lost on area alone like before.
+    #
+    # Fix: also flag a candidate as a river if a gazetteer point whose TOPONYM contains
+    # "river" falls inside its ring - the same gazetteer used for post-cut naming
+    # (gazetteer_name() above), just consulted earlier, before the cut decides who
+    # survives, not only after. Kept cheap on purpose, given the standing runtime
+    # concern on this script (a prior run took 25 minutes): river_pts below is
+    # pre-filtered to only the gazetteer's "river" points (a handful province-wide,
+    # not all ~500 named-water points), and a candidate's bounding box is checked
+    # against those few points BEFORE ever running the O(ring length) point-in-ring
+    # test - so the added cost is a handful of cheap box comparisons per candidate,
+    # not a full gazetteer_name() lookup (which tests every point) run on every
+    # candidate ahead of the cut.
+    river_pts = [(nm, x, y, ha) for nm, x, y, ha in name_pts if "river" in nm.lower()]
+    def _is_named_river(nm, ring):
+        if "river" in (nm or "").lower():
+            return True
+        if not river_pts:
+            return False
+        xs = [p[0] for p in ring]; ys = [p[1] for p in ring]
+        minx, maxx, miny, maxy = min(xs), max(xs), min(ys), max(ys)
+        for pname, x, y, ha in river_pts:
+            if minx <= x <= maxx and miny <= y <= maxy and point_in_ring(x, y, ring):
+                return True
+        return False
+    lakes_ranked = (sorted([t for t in lakes_ranked if _is_named_river(t[1], t[2])], key=lambda t: -t[0])
+                    + sorted([t for t in lakes_ranked if not _is_named_river(t[1], t[2])], key=lambda t: -t[0]))
     LAKE_CAP = 60
     for a, nm, r in lakes_ranked:
         if len(lb) >= LAKE_CAP:
@@ -571,7 +598,7 @@ def main():
             print(f"  ! lake skipped, self-intersecting after simplification "
                   f"(area~{a:.4f}, name={nm!r})")
             continue
-        if _is_named_river(nm):
+        if _is_named_river(nm, r):
             rivers_prioritized += 1
         nm2 = nm if (nm or "").strip() else gazetteer_name(s2)
         if nm2 and not (nm or "").strip():
