@@ -83,6 +83,36 @@ fully:
    it (see DERIVED_FROM below), and if it succeeded, claims's own count is
    trustworthy at any size. So "claims" skips SHRINK_FLOOR entirely and
    instead inherits tenure's accept/reject decision.
+
+4. (2026-09-13, hit live - "the lakes still aren't showing up") A single bad
+   ArcGIS run tripped two separate, previously-unnoticed gaps in the guard at
+   once:
+   - `list_should_be_rejected()`'s very first line, `if old_len <
+     MIN_SIZE_TO_GUARD: return False`, exempted any list shorter than 20
+     items from EVERY check below it, including the "did this go to zero"
+     check that guard #1 above exists specifically to catch. "places" (8
+     items on a good day) is exactly this small, so when its query failed
+     that day and came back empty, the guard let all 8 places be silently
+     replaced with 0 - the same unprotected-empty failure mode incident #1
+     was supposed to have closed everywhere, reopened here for every
+     small list. Fixed by checking for a fresh empty list FIRST, before the
+     small-list exemption ever gets a chance to apply - a list going to
+     zero is never "too small to matter," whatever floor it's judged against
+     otherwise.
+   - The generic SHRINK_FLOOR=0.5 is tuned for layers where "a lot changed
+     overnight" is itself already suspicious. That's the wrong floor for a
+     near-static geographic registry like "lakes" or "highways" - lakes
+     don't newly exist or vanish, so a same-day count that drops by 42%
+     (60 -> 35, the actual live figure that day) is never real, it's the
+     source query returning a partial result and a bad shape or two per
+     the self-intersection filter getting the rest to look like enough
+     of a drop to slip under 50%. 58% of the old count still cleared the
+     0.5 floor, so this was accepted and shipped. Fixed by
+     PER_KEY_SHRINK_FLOOR below: an explicit, stricter floor (0.85) for
+     the specific keys where day-to-day volatility this large is never
+     legitimate, checked in `list_should_be_rejected()` via
+     `PER_KEY_SHRINK_FLOOR.get(key, SHRINK_FLOOR)` - everything not listed
+     there keeps the original 0.5 behavior unchanged.
 """
 import json
 from pathlib import Path
@@ -107,6 +137,14 @@ TOTAL_OF = {"boulder_grid": "boulder_total", "geochem_grid": "geochem_total"}
 # or a large static dataset - real day-to-day movement is small.
 SHRINK_FLOOR = 0.5
 
+# Per-key override of SHRINK_FLOOR, for keys where even a same-day drop that
+# would clear the generic 0.5 floor is still never legitimate. Added after
+# incident 4: "lakes" going 60 -> 35 (58% of the old count - a passing grade
+# under 0.5) was in fact a failed/partial query, not 25 lakes disappearing
+# overnight. Lakes and highways don't move day to day at all, so a much
+# stricter floor is safe here without risking false rejections of real data.
+PER_KEY_SHRINK_FLOOR = {"lakes": 0.85, "highways": 0.85}
+
 # Below this length, a layer is small enough that ordinary variation could
 # plausibly swing past SHRINK_FLOOR on a legitimate run - don't second-guess
 # it either way, just take the fresh value like before.
@@ -120,15 +158,25 @@ MIN_SIZE_TO_GUARD = 20
 DERIVED_FROM = {"claims": "tenure"}
 
 
-def list_should_be_rejected(fresh_list, existing_list):
-    """True if fresh_list looks like a failed/partial query, not real data."""
+def list_should_be_rejected(fresh_list, existing_list, key=None):
+    """True if fresh_list looks like a failed/partial query, not real data.
+
+    The empty check runs BEFORE the small-list exemption (incident 4, part 1) - a
+    list going to zero is never "too small to matter," whatever floor it would
+    otherwise be judged against. key selects a stricter per-key floor from
+    PER_KEY_SHRINK_FLOOR when one exists (incident 4, part 2); everything else
+    keeps the original SHRINK_FLOOR.
+    """
     old_len = len(existing_list or [])
     new_len = len(fresh_list)
-    if old_len < MIN_SIZE_TO_GUARD:
+    if old_len == 0:
         return False
     if new_len == 0:
         return True
-    if new_len < old_len * SHRINK_FLOOR:
+    if old_len < MIN_SIZE_TO_GUARD:
+        return False
+    floor = PER_KEY_SHRINK_FLOOR.get(key, SHRINK_FLOOR)
+    if new_len < old_len * floor:
         return True
     return False
 
@@ -149,7 +197,7 @@ def main() -> None:
             continue  # totals and derived keys are handled below, tied to another key's decision
         if isinstance(v, list):
             existing = bundle.get(k)
-            if list_should_be_rejected(v, existing):
+            if list_should_be_rejected(v, existing, key=k):
                 skipped.append((k, len(existing or []), len(v)))
                 rejected_lists.add(k)
                 continue
