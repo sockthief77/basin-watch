@@ -1021,6 +1021,10 @@ var NEWSTYPE={
   grade:{lab:'Grade result'},
   geo:  {lab:'Geophysics / survey'},
   drill:{lab:'Drill program / permit'},
+  cps:  {lab:'Fresh cps reading'}, /* added 2026-09-13 - split out of 'drill': a program
+    start/mobilization/permit has no reading yet (stays 'drill', Other News yellow); this is
+    specifically for a release whose own headline content is a fresh handheld/downhole cps
+    number, matching the purple used for .g-cps prose */
   deal: {lab:'Property deal'},
   mre:  {lab:'Resource estimate / study'},
   fin:  {lab:'Financing'}}; /* added 2026-09-13 - a private placement/financing isn't a "deal"
@@ -1043,10 +1047,10 @@ var NEWSDCOL='#C9A2FF'; /* brightened 2026-09-13, was #B295DC - too low-contrast
   P.news.push({p:p,ll:[w.x,w.y],n:w.n,co:w.co,g:w.g,when:w.when,url:w.url,note:w.note,
     ty:ty, anc:an, unc:(w.unc==null?(ANCUNC[an]||0):+w.unc),
     num:(w.num==null?null:+w.num),
-    col:(ty==='grade'?'#00e64d':ty==='drill'?NEWSDCOL:NEWSXCOL)}); });
+    col:(ty==='grade'?'#00e64d':ty==='cps'?NEWSDCOL:NEWSXCOL)}); }); /* 2026-09-13: purple is keyed on ty==='cps' now, not 'drill' - 'drill' (program starts/permits/mobilization, no reading yet) correctly falls to Other News yellow; only a release whose own content IS a fresh cps reading gets purple */
 var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
-var NEWSD=P.news.filter(function(w){return w.ty==='drill';});
-var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='drill';});
+var NEWSD=P.news.filter(function(w){return w.ty==='cps';});
+var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='cps';});
 /* One star for every waypoint, whatever its type - per explicit instruction 2026-09-08. A per-type glyph set
    (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
    by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
