@@ -831,12 +831,100 @@ stale 7-day framing.
 ## Watermark
 
 ```
-LAST_OBJECTID: 7468
-LAST_RUN: 2026-09-13
-LAYER0_COUNT_AT_LAST_RUN: 7468
-LAYER3_LAPSED_COUNT_AT_LAST_RUN: 374
+LAST_OBJECTID: 7459
+LAST_RUN: 2026-09-14
+LAYER0_COUNT_AT_LAST_RUN: 7459
+LAYER3_LAPSED_COUNT_AT_LAST_RUN: 375
 LAST_EDITION_NO: 004
 ```
+
+**Note (2026-09-14): edition number NOT incremented this run** - see the 2026-09-14 run note
+below. No new edition was published (news sweep and price refresh could not be performed - a
+session/environment-level network egress block, not a data problem), so `LAST_EDITION_NO` stays
+004, the last edition actually published. The claim/tenure/lapsed figures above ARE fresh
+(sourced from `data/bundle.json`, itself refreshed by `gis-export.yml` earlier the same day -
+confirmed by a fresh `git log`/`git pull`, not by this session's own ArcGIS queries, since this
+session's WebFetch access to `gis.saskatchewan.ca` is part of the same block described below).
+
+## Run note, 2026-09-14 (scheduled 08:20 America/Regina run) - repo-bound session, network egress blocks news sweep and price refresh; no new edition published
+
+**Session type confirmed repo-bound**: `git push --dry-run` against `sockthief77/basin-watch`
+succeeded (real push access, per `basinwatch-pipeline-fix.md`'s 2026-09-14 standing note), and
+this run is publishing per Step 4b's repo-bound path (direct `git add`/commit/push to `main`,
+not the manual `SendUserFile` handoff) - except no publish happened this run, see below.
+
+**Step 1 (claim monitor) - completed successfully, using the simplified repo-sourced procedure
+per `map-pipeline.md`'s "one map dataset" section:**
+- `git pull origin main` confirmed current with `origin/main` (commit `52407f8`); `data/bundle.json`
+  was refreshed by `gis-export.yml` earlier today (commit `14e3f59`, "Daily GIS export refresh
+  (2026-09-14)") - its own `generated` field still reads 2026-09-09, which is the already-documented
+  `merge_map_bundle.py` behaviour (that script deliberately excludes `generated` from every merge),
+  not a sign the refresh didn't run. Confirmed the refresh is real by diffing record counts against
+  the prior day's committed bundle: `tenure` 7,460 -> 7,459, `lapsed` 375 -> (see below), `claims`
+  and `ab_tenure` unchanged (81, 74).
+- Lapsing by 21 Sep (7 days): **100** - Ryan Kalt (individual) 17, Eagle Plains Resources 13,
+  Murchison Minerals 12, Orano Canada 11, Greenridge Exploration 10, Inspiration Energy 8, Jasper
+  jon arthur Mowatt (individual) 5, 92 Energy Canada 4, then smaller holders. Computed locally from
+  `data/bundle.json`'s `tenure[].x` (GOODSTANDI) field, today = 2026-09-14.
+- Lapsing 22-28 Sep (8-14 days out): **93** - Ryan Kalt 76, Greenridge Exploration 8, Argo Gold 3,
+  Golden Band Resources 2, Orano Canada 2, then singles.
+- Claims (14-day staking window): still **81** (42 corporate / 39 individual) - byte-identical
+  composition to Edition 004's figures (CanAlaska 16, Gem Oil 10, Cosa Resources 6, Skyharbour 6,
+  Standard Uranium 4 among corporate holders). Max `EFFECTIVED` date in the array is still
+  2026-09-11 - consistent with the documented business-days-only staking pattern (09-12 Sat,
+  09-13 Sun had no new registrations, and 09-14's own day-of staking wouldn't appear in a bundle
+  built from an early-morning pull) rather than a stale pipeline.
+- Lapsed register: **375** in `data/bundle.json`, vs **376** in `gis/exports/lapsed_state.json`
+  (both dated 2026-09-14) - a 1-record discrepancy between two outputs of the same day's pipeline
+  run, not independently re-verified against a live ArcGIS count this run (see network block
+  below). Worth a future run checking if this recurs.
+- Alberta tenure: 74 agreements survive the basin window (`ab_tenure`), 712 total in
+  `gis/exports/ab_state.json` (region-wide, pre-basin-filter) - consistent with the documented
+  ~74/province-wide split, no anomaly.
+
+**Step 2 (news sweep) and Step 4 (price/market context) - NOT completed. Root cause: this
+session's network egress policy blocks `WebFetch` to essentially every external domain tested,
+not just the specific hosts previously documented as blocked for other session types.**
+
+Confirmed via direct test (all returned `EGRESS_BLOCKED` from the local agent proxy, per
+`/root/.ccr/README.md`'s "403/407 from the proxy: destination host not allowed by your
+organization's egress policy for this session - do not retry or route around it, report the
+blocked host"): `www.cameco.com`, `www.google.com` (Google Finance), `stockanalysis.com`,
+`www.newsfilecorp.com`, `en.wikipedia.org`, `www.bankofcanada.ca`. The only domain that answered
+was `github.com` (used for this repo). This is a materially different constraint from every prior
+session's documented finding (which named a short, specific list - `gis.saskatchewan.ca`,
+`raw.githubusercontent.com`, `basinwatch.ca`, `accounts.google.com` - and treated everything else
+as reachable): in this session/environment, the allowlist appears to cover little beyond GitHub.
+
+`WebSearch` (a separate tool, not proxied the same way) does still work, but its AI-summarized
+answers proved unreliable and couldn't be independently checked: a test query for Cameco's
+published spot price returned "$75.13, up from $71.10" with no matching source snippet actually
+containing that figure, directly contradicting the already-live page's own Aug-2026 figure of
+US$89.68/lb - i.e. the summary was very likely synthesized/hallucinated rather than read off a
+real page. Per the skill's own hard rule ("a confidently wrong price is worse than no price") and
+the general rule against publishing unverified figures, `WebSearch` summaries were not used as a
+substitute for `WebFetch`-verified source content anywhere in this run.
+
+**Decision: no new edition published this run.** Fabricating a news sweep or carrying forward
+unverified/possibly-stale news content while implying a fresh check had been done would violate
+the skill's own explicit instruction ("do not fabricate roster, claims, or state data to force a
+run through... stop and say so... a refusal to publish is the correct behavior, not a bug to
+route around") - that instruction is written about missing ops docs, but the same principle
+applies squarely to a blocked data source. The claude.ai Basin Watch/Basin Explorer pages and
+`data/edition.json`/`main` were left untouched; Edition 004 (2026-09-13) remains the live/current
+edition. This watermark file and this run note were committed and pushed directly to `main`
+(repo-bound push, per Step 4b), since capturing the finding is itself a repo file change, not a
+publish of unverified content.
+
+**Recommended follow-up, not for this run to act on:** check whether this Claude Code
+environment's network egress allowlist is meant to include the news-wire and financial-data hosts
+this skill depends on (`juniorminingnetwork.com`, `newsfilecorp.com`, `newswire.ca`,
+`accessnewswire.com`, `globenewswire.com`, `saskatchewan.ca`, `cnsc-ccsn.gc.ca`,
+`wise-uranium.org`, `cameco.com`, `google.com` for Finance quotes, `bankofcanada.ca`) - if the
+intent is for this repo-bound environment to run the full daily brief unattended, the allowlist
+needs those hosts added; until then, either the old non-repo-bound scheduled task (which ran in
+an environment where those hosts were reachable) should keep covering the news/price steps, or
+this environment's policy needs revisiting.
 
 **Note (2026-09-12): `LAST_OBJECTID`/`LAYER0_COUNT_AT_LAST_RUN` both track the `1=1`
 returnCountOnly total (7468), not literally the maximum `OBJECTID` value (confirmed this run
