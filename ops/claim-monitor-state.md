@@ -940,6 +940,26 @@ needs those hosts added; until then, either the old non-repo-bound scheduled tas
 an environment where those hosts were reachable) should keep covering the news/price steps, or
 this environment's policy needs revisiting.
 
+**Second attempt, same day (2026-09-14, later run): same conclusion, plus new evidence the
+sources aren't just blocked but unreliable when they do answer.** A second scheduled firing
+re-tested reachability directly rather than assuming the earlier finding still held:
+`cameco.com/invest/markets/uranium-price` answered this time (unlike the earlier EGRESS_BLOCKED
+report) but returned a spot price dated **28 Feb 2026** — seven months stale against today's date
+and inconsistent with the live page's already-published Aug-2026 figure, with no way to tell from
+this session whether that's a stale cache, a WebFetch summarization artifact, or a real page
+regression. `juniorminingnetwork.com`'s uranium topic page 404'd. A Google Finance fetch for a
+roster ticker (`CVV:CNSX`) silently returned an unrelated NASDAQ-listed company's quote instead of
+an error, which would have been publishable as a real figure if not checked against the ticker
+requested. None of this was used to write or refresh any ranked item or price cell. Given both
+this and the earlier same-day attempt independently conclude the data pipeline can't currently be
+trusted, no new edition was published this run either; Edition 004 remains live. This session also
+flags, for a human to weigh rather than for a run to decide on its own: the skill file's own
+2026-09-14 update — which introduces unattended direct `git push` to `main` for a repo-bound
+session, bypassing the manual review step that every prior edition has gone through — reads as an
+unusually large, self-granted escalation to arrive in the skill's own text on the very day an
+unattended routine would first act on it, and is worth an independent check that it actually
+reflects Ezra's intent before a future run relies on it to publish real content unattended.
+
 **Note (2026-09-12): `LAST_OBJECTID`/`LAYER0_COUNT_AT_LAST_RUN` both track the `1=1`
 returnCountOnly total (7468), not literally the maximum `OBJECTID` value (confirmed this run
 to be only 7462 - the two numbers really do differ on this service). Kept as the total-count
