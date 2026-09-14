@@ -916,6 +916,20 @@ edition. This watermark file and this run note were committed and pushed directl
 (repo-bound push, per Step 4b), since capturing the finding is itself a repo file change, not a
 publish of unverified content.
 
+**Independent confirmation:** a subagent dispatched in parallel to attempt the full news sweep via
+`WebSearch` (not `WebFetch`, which it also found `EGRESS_BLOCKED` for every named source -
+Junior Mining Network, TMX Newsfile, newswire.ca, ACCESS Newswire, GlobeNewswire, Saskatchewan EA,
+CNSC, WISE Uranium, CIRO) reached the same conclusion independently: no primary source was
+fetchable, only secondary/aggregator search summaries, which it correctly flagged as needing
+primary-source confirmation rather than being publishable as-is. For the next run once network
+access is restored, worth specifically re-checking: whether IsoEnergy's Larocque East assays
+(still pending as of Sep 8 reporting) have landed; the CanAlaska Key Extension item may need
+upgrading from "mobilization" to "Fall 2026 drill program underway" (per the subagent's secondary
+sourcing - unverified); the Nexus Uranium (NEXU) CIRO halt is reportedly still unresolved with no
+resumption notice found, and no listed resumption in CIRO's Sep 12-14 batch (ALGR, IVS, SPMC,
+NILI, GORO, CQR) included it. None of this was added to the live page - it is all secondary-source
+only and unverified per the caveats above.
+
 **Recommended follow-up, not for this run to act on:** check whether this Claude Code
 environment's network egress allowlist is meant to include the news-wire and financial-data hosts
 this skill depends on (`juniorminingnetwork.com`, `newsfilecorp.com`, `newswire.ca`,
