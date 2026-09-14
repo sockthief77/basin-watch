@@ -84,19 +84,28 @@ committed yet as of this writing:**
 Every file in this pass's handoff was grep-checked (case-insensitive) for "ezra" before
 sending - zero matches, per the standing rule.
 
-## Still open, as of 2026-09-13 (later)
+## Update, 2026-09-14 (repo-bound daily-brief run): two of the four items below checked against the real repo
 
-- **`scripts/merge_map_bundle.py`'s incident-4 guard fix - confirm it actually gets committed.**
-  This is the most consequential item on this list right now: the live pipeline runs unguarded
-  against the exact `lakes`/`places` corruption already seen once, until this lands.
-- **Clearwater River - confirm it actually renders after the next `gis-export.yml` run** (see
-  above; logic-tested only, not yet run against live ArcGIS data).
+- **`scripts/merge_map_bundle.py`'s incident-4 guard fix - CONFIRMED COMMITTED AND LIVE.**
+  Checked directly against `main` this run (`grep -n "DERIVED_FROM\|SHRINK_FLOOR\|incident"
+  scripts/merge_map_bundle.py`): `PER_KEY_SHRINK_FLOOR = {"lakes": 0.85, "highways": 0.85}` and
+  the `DERIVED_FROM = {"claims": "tenure"}` mechanism are both present and match the fix
+  described below. No longer an open item - the live pipeline is guarded.
+- **Clearwater River - STILL NOT RENDERING, re-confirmed against today's live bundle.** The
+  gazetteer-fallback code described below (`_is_named_river()` checking a gazetteer point
+  before the area cut) is present in `gis/basin_layers.py` on `main`, but a direct check of
+  today's `data/bundle.json` (refreshed by this morning's `gis-export.yml` run, commit
+  `14e3f599`) finds no "Clearwater River" anywhere in its 60-entry `lakes` array. The code fix
+  landing did not fix the symptom - this needs actual debugging against live ArcGIS data (why
+  the gazetteer-fallback check isn't catching this specific feature), not just a re-check after
+  another routine run. Left uninvestigated this run - out of scope for a daily news brief - but
+  should not be assumed "probably fixed by now" going forward.
 - **`site/shell.html`'s Boulder Heat `get()` still reads `B.boulder_total`** instead of
   `P.heat.length` (carried over from the 2026-09-10 entry above) - still cosmetic/latent only,
-  still not yet confirmed applied to this file specifically.
+  not checked this run.
 - **`news-waypoints.md`'s "Proposed ranking-tier rule" section still reads as undecided** even
   though Ezra already said yes and the data change shipped - update the wording next time
-  that file is opened, low priority, doesn't block anything.
+  that file is opened, low priority, doesn't block anything. Not checked this run.
 
 # RESOLVED 2026-09-10 (later still): basinwatch.ca Boulder Heat / Lake & Soil Heat data loss - root cause fixed and confirmed live
 

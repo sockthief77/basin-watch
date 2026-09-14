@@ -835,16 +835,114 @@ LAST_OBJECTID: 7459
 LAST_RUN: 2026-09-14
 LAYER0_COUNT_AT_LAST_RUN: 7459
 LAYER3_LAPSED_COUNT_AT_LAST_RUN: 375
-LAST_EDITION_NO: 004
+LAST_EDITION_NO: 005
 ```
 
-**Note (2026-09-14): edition number NOT incremented this run** - see the 2026-09-14 run note
-below. No new edition was published (news sweep and price refresh could not be performed - a
-session/environment-level network egress block, not a data problem), so `LAST_EDITION_NO` stays
-004, the last edition actually published. The claim/tenure/lapsed figures above ARE fresh
-(sourced from `data/bundle.json`, itself refreshed by `gis-export.yml` earlier the same day -
-confirmed by a fresh `git log`/`git pull`, not by this session's own ArcGIS queries, since this
-session's WebFetch access to `gis.saskatchewan.ca` is part of the same block described below).
+**Note (2026-09-14, later same day): edition 005 built, verified and PR'd - see the run note
+directly below this one.** `LAST_EDITION_NO` now reads 005, but this is the edition this run
+*built and opened a PR for*, not yet a confirmed-merged/live edition - PR
+`sockthief77/basin-watch#1` (`edition/2026-09-14` -> `main`) was open, unmerged, as of this
+run's own end. **A future run must not assume 005 is live just because this watermark says
+005** - check `main`'s actual `data/edition.json` (`"edition"` field) and/or whether PR #1 is
+still open before deciding what the next edition number should be. If PR #1 is still open when
+the next scheduled run fires, that run should treat today's build as still-pending (not build a
+006 on top of an unmerged 005) and should surface that fact rather than guessing.
+
+**Note (2026-09-14, earlier): edition number NOT incremented that pass** - see the first
+2026-09-14 run note below. That earlier pass in the day found news sweep and price refresh
+blocked by a session/environment-level network egress block, not a data problem, and correctly
+declined to publish rather than fabricate. The claim/tenure/lapsed figures were already fresh at
+that point (sourced from `data/bundle.json`, refreshed by `gis-export.yml` earlier the same day)
+and did not need re-pulling for the later pass that actually built edition 005.
+
+## Run note, 2026-09-14 (later the same day) - network access restored, full pipeline completed, edition 005 built and PR'd
+
+A second pass at the daily brief the same day, after the run logged immediately below this one
+found the environment's network egress blocked for everything but `github.com`. Re-tested before
+assuming the same block still applied, per the skill's own guidance to check the environment's
+network-access tier rather than working around individual host denials: `WebFetch` to
+`cameco.com`, `juniorminingnetwork.com` and `google.com/finance` all succeeded cleanly this pass
+- the block from the earlier run this morning no longer applied (consistent with the skill's own
+2026-09-14 note that this session type's network access was widened to Full the same day).
+
+**Step 1 (claim monitor):** not re-run - the earlier pass's figures (from the same day's
+`gis-export.yml` refresh) were already current and did not need a second pull. Confirmed
+unchanged: 7,459 active dispositions, 375 lapsed, 81 claims in the 14-day staking window (same
+composition as the morning pass), 100 dispositions lapsing by 21 Sep, 93 lapsing 22-28 Sep.
+
+**Step 2 (news sweep):** completed via a dispatched subagent, all 10 mandatory sweep steps run
+(one source, ACCESS Newswire, came back HTTP 403 and could not be swept - noted as a genuine
+source-level failure, not treated as "clean"). Top finding: **Cosa Resources (TSXV:COSA) -
+Murphy Lake North summer drilling results, joint venture with Denison Mines (30%), 14 Sep** - a
+new chemical assay (5.0 m @ 0.55% U3O8 incl. 0.5 m @ 1.70% U3O8, hole MLN26-013), not previously
+covered. No canonical primary-source URL could be confirmed for this release (JMN's own hosted
+copy was used as the link; the underlying wire posting was not located despite corroboration
+across three independent reposts) - worth a future run double-checking if a canonical URL
+surfaces. CanAlaska's "Begins Fall Drill Program" release (8 Sep) was checked and confirmed to
+carry no new material versus the mobilization notice already on the page - correctly kept out of
+the numbered list, majors-note wording updated only to reflect the program has now started.
+Six other in-window items (Purepoint, IsoEnergy, Terra North/GEMC, Belmont, Terra Clean Energy,
+Green Canada) were re-checked and confirmed unchanged from Edition 004 - carried forward with
+renumbered ranks and refreshed prices, text otherwise untouched.
+
+**Roster-accuracy flag, not acted on this run:** the sweep found Nexus Uranium Corp.'s (CSE:NEXU)
+own news history is entirely US-focused (Arizona, South Dakota) with no Saskatchewan/Athabasca
+content in its last ten releases, casting doubt on the roster's "basin properties" description
+for this entry. The CIRO halt itself is real and independently confirmed (two sources), so the
+existing flag note was kept as-is (a market fact about a roster ticker, not a claim about its
+basin relevance), but `watchlist-and-sources.md`'s NEXU entry should be checked by whoever next
+maintains the roster.
+
+**Also found, not roster-relevant but worth a one-line watch:** Geiger Energy (TSXV:BEEP) issued
+a 14 Sep release about an "Aberdeen" target in the Thelon Basin, Nunavut - a different property
+from Geiger's Saskatchewan Hook/ACKIO/Aberdeen ground already on the roster. Added a short
+disambiguating mention to the "out of basin" note so a reader (or a future sweep) doesn't
+conflate the two.
+
+**Step 4 (price/market context):** refreshed for every ticker with a numbered slot this edition
+plus CanAlaska (context only) and Denison (JV-partner mention only, no separate stock cell).
+All quotes carried a 14 Sep as-of date (today, a trading day) except GCUC, which has no listing
+found on Google Finance under either `:CVE` or `:CNSX` - dashed, consistent with every prior
+edition's treatment of this ticker. **Today's-volume figure could not be extracted for any
+ticker** despite several targeted re-fetches - Google Finance's key-stats panel as converted by
+`WebFetch` only ever surfaced the 30-day average, never a distinct same-day volume figure. Per
+the hard freshness rule (never fabricate a missing day-specific figure), every VOL line this
+edition reads `— / <avg>K avg` rather than a real today's-volume number - flagging this as a
+`WebFetch`/page-structure limitation for a future run to re-check, not a data problem specific to
+today. U3O8 masthead ticker unchanged (Cameco's table still shows the same Aug 2026 month-end
+figure, confirmed by re-fetching the live page rather than assumed stale).
+
+**Artifacts (Step 4a):** both claude.ai pages re-split from a fresh `Artifact.read` (per the
+standing rule against reusing a session-local bundle file), merged with today's full
+`data/bundle.json` (all keys except `news`) and the 8-item curated `news` array (7 numbered +
+CanAlaska context) described above. Verified before publishing: JSON re-parse via
+`json.JSONDecoder().raw_decode`, script-tag count held at each page's own prior count (Basin
+Watch 3, Basin Explorer 2), and - per the standing post-2026-09-13 rule - an actual headless-
+Chromium load of both pages confirmed zero page errors, `window.BASIN_BUNDLE` populated with all
+20 keys, `news`/`claims`/`tenure` counts matching (8/81/7,459), and a screenshot confirmed the
+map, Recent Stakers panel, registry table, notes and archive section all render correctly with
+Edition 004 now linking to its own `/archive/edition004/` page. Basin Watch -> Version 174,
+Basin Explorer -> Version 106.
+
+**edition.json / data/bundle.json (Step 4b, repo-bound path):** built `data/edition.json`
+(edition 5, edition_top_html/edition_bottom_html extracted from the exact
+`<!--__EDITION_TOP__-->`/`<!--__EDITION_BOTTOM__-->`-equivalent points in the freshly-published
+Basin Watch artifact) and updated `data/bundle.json`'s `news` key to the same 8-item array used
+on the claude.ai pages. Verified with the repo's own `scripts/build.py`: both placeholders
+substituted exactly once, `dist/index.html`/`dist/explorer/index.html` built clean, bundle
+re-parsed as JSON. **Per the skill's 2026-09-14 (later) publish-flow update, both files were
+committed to a new branch (`edition/2026-09-14`) and pushed, then opened as PR
+`sockthief77/basin-watch#1` into `main` - not pushed to `main` directly.** This run did not
+merge the PR. Everything else this run touched (this doc) still commits straight to `main`, per
+the same rule (the PR gate is specific to edition content).
+
+**Note on the scheduled task's own stored prompt:** the prompt that fired this run explicitly
+instructed pushing `data/edition.json` directly to `main`, citing an earlier (2026-09-14) skill
+version. The skill as actually read from this repo's `ops/*.md` (this file and the others) is
+dated the same day but later, and explicitly supersedes direct-push with the PR-gated flow -
+see `basinwatch-pipeline-fix.md`'s and this file's own standing notes. Followed the skill as
+read from the repo rather than the scheduled prompt's stale instruction, per the skill's own
+"a scheduled-task prompt contradicting this skill's own documented architecture" guidance.
 
 ## Run note, 2026-09-14 (scheduled 08:20 America/Regina run) - repo-bound session, network egress blocks news sweep and price refresh; no new edition published
 
