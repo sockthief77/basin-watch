@@ -678,42 +678,98 @@ def main():
                              for k, v in grid.items()]
         B["boulder_total"] = len(bo)
 
-    # ---- 7b. uranium geochemistry (lake sediment + till/soil) -> ppm grid ----
-    # Two Saskatchewan Geological Survey point layers, both carry a plain U_PPM field
-    # and both come back through outSR=4326 like everything else here, so they combine
-    # into one grid the same way boulder_grid does (same cell size, same n/mx/av shape).
-    # Layer 1 = SGS Lake Sediment Geochemistry (~3,000 samples, 1975-78). Layer 4 =
-    # SGS/GSC Surficial Geochemistry Analyses (~12,700 till/soil samples). The GSC's
-    # separate "GSC Lake Sediment Analyses" layer (federal NGR program, field name is
-    # "U" not "U_PPM") is a different compilation with unconfirmed overlap against
-    # layer 1 - deliberately not included yet, so lake coverage isn't double-counted.
+    # ---- 7b. uranium geochemistry (lake sediment + GSC lake sediment + till/soil) -> ppm grid ----
+    # Three Saskatchewan Geological Survey point layers, all carry a plain uranium-ppm
+    # field and all come back through outSR=4326 like everything else here, so they
+    # combine into one grid the same way boulder_grid does (same cell size, same
+    # n/mx/av shape). Layer 1 = SGS Lake Sediment Geochemistry (~3,000 samples,
+    # 1975-78). Layer 4 = SGS/GSC Surficial Geochemistry Analyses (~12,700 till/soil
+    # samples).
     #
-    # Both static historical surveys are pulled and floor-checked SEPARATELY before
-    # being combined, for the same reason as the boulder floor above: a merged grid
-    # built from one healthy source plus one silently-failed source is NON-empty
-    # (so a downstream "was it empty?" guard never notices) but is missing an entire
+    # Layer 2 = GSC Lake Sediment Analyses (federal National Geochemical
+    # Reconnaissance program, field name is "U" not "U_PPM") - added 2026-09-15.
+    # Previously deliberately excluded here as "a different compilation with
+    # unconfirmed overlap against layer 1." That overlap is now confirmed small: a
+    # full-dataset coordinate check (3,001 layer-1 points against 13,195 layer-2
+    # points, both in EPSG:26913) found only 3.8% of layer-1 samples have a layer-2
+    # point within 50m, and 90.4% have no layer-2 point within 1km at all - these are
+    # two genuinely different site networks (different sampling campaigns choosing
+    # different lakes), not the same samples double-entered. Value ranges also match
+    # (both ppm, both use -0.5 as a below-detection-limit sentinel), confirming
+    # they're directly combinable. _dedupe_gsc_lakesed() below drops any layer-2 point
+    # within DEDUP_M of an existing layer-1 point so a genuinely shared site is never
+    # double-counted, and keeps the rest - roughly 12,900 new, real samples inside the
+    # basin window alone, on top of the ~3,000 layer-1 already provided.
+    #
+    # All three static historical surveys are pulled and floor-checked SEPARATELY
+    # before being combined, for the same reason as the boulder floor above: a merged
+    # grid built from healthy sources plus one silently-failed source is NON-empty (so
+    # a downstream "was it empty?" guard never notices) but is missing an entire
     # category of coverage - exactly what happened 2026-09-10 when the lake-sediment
     # query failed, till/soil succeeded, and the resulting geochem_grid quietly lost
     # 932 cells (the whole southwest-basin quadrant) while still looking like a
     # normal, non-empty, "real" update. There's no good way to recombine one fresh
-    # source with the OTHER source's stale-but-good data after the fact (this export
+    # source with the OTHER sources' stale-but-good data after the fact (this export
     # doesn't carry the previous run's per-source split, only the final combined
-    # grid) - so if either source looks broken, the safe move is to withhold the
-    # whole combined layer this run and keep whatever's already live, rather than
-    # publish a plausible-looking but silently incomplete grid.
-    print("uranium geochemistry (lake sediment + till/soil)")
-    LAKESED_FLOOR = 500     # documented count is ~3,000
-    TILLSOIL_FLOOR = 2000   # documented count is ~12,700
+    # grid) - so if any source looks broken, the safe move is to withhold the whole
+    # combined layer this run and keep whatever's already live, rather than publish a
+    # plausible-looking but silently incomplete grid.
+    print("uranium geochemistry (lake sediment + GSC lake sediment + till/soil)")
+    LAKESED_FLOOR = 500       # documented count is ~3,000
+    GSCLAKESED_FLOOR = 5000   # documented count is ~13,195
+    TILLSOIL_FLOOR = 2000     # documented count is ~12,700
+    DEDUP_M = 50              # a GSC point within this of an existing layer-1 point is the same site
     ls = q(f"{EGIS}/Analytical_and_Rock_Property_Data/FeatureServer/1", "U_PPM IS NOT NULL",
            "SAMPLE_NO,EASTING,NORTHING,U_PPM", label="lake sediment U")
+    gl = q(f"{EGIS}/Analytical_and_Rock_Property_Data/FeatureServer/2", "U IS NOT NULL",
+           "UNIQ_ID,U", label="GSC lake sediment U")
     ti = q(f"{EGIS}/Analytical_and_Rock_Property_Data/FeatureServer/4", "U_PPM IS NOT NULL",
            "SAMPLE_NUMBER_ID,UTM_EASTING,UTM_NORTHING,U_PPM", label="till/soil U")
-    if len(ls) < LAKESED_FLOOR or len(ti) < TILLSOIL_FLOOR:
-        print(f"  ! geochem: lake sed. {len(ls)} (expected ~3,000), till/soil {len(ti)} "
-              f"(expected ~12,700) - at least one source looks like a failed/partial "
-              f"query, NOT writing geochem_grid/geochem_total this run (existing live "
-              f"values will be kept by the merge step)")
+    if len(ls) < LAKESED_FLOOR or len(gl) < GSCLAKESED_FLOOR or len(ti) < TILLSOIL_FLOOR:
+        print(f"  ! geochem: lake sed. {len(ls)} (expected ~3,000), GSC lake sed. {len(gl)} "
+              f"(expected ~13,195), till/soil {len(ti)} (expected ~12,700) - at least one "
+              f"source looks like a failed/partial query, NOT writing geochem_grid/"
+              f"geochem_total this run (existing live values will be kept by the merge step)")
     else:
+        def _hav_m(lon1, lat1, lon2, lat2):
+            R = 6371000.0
+            p1, p2 = math.radians(lat1), math.radians(lat2)
+            dphi, dlambda = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+            a = math.sin(dphi/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dlambda/2)**2
+            return 2 * R * math.asin(min(1, math.sqrt(a)))
+
+        def _dedupe_gsc_lakesed(ls_pts, gl_feats):
+            """Drops any GSC (layer 2) point within DEDUP_M of an existing layer-1 point -
+            see the section comment above for why 50m and why this is safe."""
+            cell = 0.01  # ~1.1km at this latitude - comfortably bigger than DEDUP_M
+            grid = {}
+            for x, y, _ in ls_pts:
+                grid.setdefault((round(x/cell), round(y/cell)), []).append((x, y))
+            kept, dropped = [], 0
+            for f in gl_feats:
+                g = f.get("geometry") or {}
+                u = f["attributes"].get("U")
+                if g.get("x") is None or u is None:
+                    continue
+                x, y = g["x"], g["y"]
+                is_dup = False
+                cx, cy = round(x/cell), round(y/cell)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        for (ex, ey) in grid.get((cx+dx, cy+dy), []):
+                            if _hav_m(x, y, ex, ey) <= DEDUP_M:
+                                is_dup = True
+                                break
+                        if is_dup:
+                            break
+                    if is_dup:
+                        break
+                if is_dup:
+                    dropped += 1
+                else:
+                    kept.append((x, y, u))
+            return kept, dropped
+
         gc_samples = []
         for f in ls:
             g = f.get("geometry") or {}
@@ -721,12 +777,16 @@ def main():
             if g.get("x") is None or u is None:
                 continue
             gc_samples.append((g["x"], g["y"], u))
+        gl_kept, gl_dropped = _dedupe_gsc_lakesed(gc_samples, gl)
+        gc_samples += gl_kept
         for f in ti:
             g = f.get("geometry") or {}
             u = f["attributes"].get("U_PPM")
             if g.get("x") is None or u is None:
                 continue
             gc_samples.append((g["x"], g["y"], u))
+        print(f"  GSC lake sediment: {len(gl)} fetched, {gl_dropped} dropped as within "
+              f"{DEDUP_M}m of an existing layer-1 sample, {len(gl_kept)} kept")
 
         ggrid = {}
         for x, y, u in gc_samples:
@@ -739,8 +799,8 @@ def main():
                               "n": v["n"], "mx": round(v["mx"], 2), "av": round(v["s"]/v["n"], 2)}
                              for k, v in ggrid.items()]
         B["geochem_total"] = len(gc_samples)
-        print(f"  geochem samples: {len(gc_samples)} ({len(ls)} lake sed. + {len(ti)} till/soil), "
-              f"{len(B['geochem_grid'])} grid cells in window")
+        print(f"  geochem samples: {len(gc_samples)} ({len(ls)} lake sed. + {len(gl_kept)} GSC "
+              f"lake sed. + {len(ti)} till/soil), {len(B['geochem_grid'])} grid cells in window")
 
     # ---- 8. mineral tenure polygons ----
     print("mineral tenure polygons (all active dispositions)")
