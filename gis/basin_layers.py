@@ -1243,27 +1243,7 @@ def main():
     print(f"  restricted lands bundled: {len(restricted)} polygons across all 6 MARS "
           f"categories (park/crownreserve/reserve/urban/claim/manual)")
 
-    # ---- 14. Cameco Leases (added 2026-09-15) ----
-    # The root (non-Economy) Mining/MapServer, layer 2 - Cameco is the dominant Athabasca
-    # Basin producer (majority owner of McArthur River and Key Lake, among others); this
-    # is its own leased ground specifically, distinct from the general Mineral Tenure
-    # Crown Dispositions layer everyone (including Cameco itself) stakes through. Small
-    # (17 polygons province-wide) and geometry-only - no useful attributes beyond a
-    # generic LAYER string - so this is purely a "whose ground is this" background
-    # reference, not a filterable/sortable dataset like tenure.
-    print("Cameco Leases")
-    cameco_feats = q(f"{ARC}/Mining/MapServer/2", "1=1", "OBJECTID", window=True, label="cameco")
-    cameco = []
-    for f in cameco_feats:
-        rings = (f.get("geometry") or {}).get("rings", [])
-        for r in rings:
-            s = dp(r, 0.001)
-            if len(s) > 2:
-                cameco.append({"r": rnd(s, 4)})
-    B["cameco"] = cameco
-    print(f"  Cameco Leases bundled: {len(cameco)} polygons ({len(cameco_feats)} raw features)")
-
-    # ---- 15. historical exploration surveys (added 2026-09-15) ----
+    # ---- 14. historical exploration surveys (added 2026-09-15) ----
     # Economy/P_Mineral_Assessment_File_Information - Saskatchewan's Mineral Assessment
     # File index: every historical exploration program (ground/airborne/underground) filed
     # with the province, each polygon carrying its file number, work date, a free-text
@@ -1442,7 +1422,7 @@ def main():
     print(f"\nmap_bundle.json  {os.path.getsize(p)/1e6:.1f} MB")
     for k in ("tenure", "claims", "deposits", "mines", "places", "highways", "footprints",
               "lakes", "boulder_grid", "geochem_grid", "conductors", "lapsed", "ab_tenure",
-              "restricted", "smdi", "cameco", "surveys"):
+              "restricted", "smdi", "surveys"):
         print(f"  {k:14s} {len(B.get(k, [])):>7,}")
     print("\nDone. Tell Claude the bundle is ready.")
 

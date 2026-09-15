@@ -6,12 +6,11 @@ data/bundle.json (the bundle the site actually builds from).
 Run after gis/basin_layers.py, before committing. Replaces every key
 basin_layers.py produces - tenure, claims, deposits, mines, places, highways,
 footprints, lakes, boulder_grid, boulder_total, geochem_grid, geochem_total,
-conductors, lapsed, ab_tenure, restricted, smdi, cameco, surveys - with the
+conductors, lapsed, ab_tenure, restricted, smdi, surveys - with the
 freshly pulled version, subject to the guards below. ("claims" added
 2026-09-12 - see incident 3 below for why it's guarded differently from
-everything else here. "cameco"/"surveys" added 2026-09-15 - both new,
-generically covered by the same per-key loop as everything else, no new
-guard behavior needed.)
+everything else here. "surveys" added 2026-09-15 - new, generically covered
+by the same per-key loop as everything else, no new guard behavior needed.)
 
 Deliberately leaves three keys untouched, per the merge guard in the Basin
 Watch project's claude/map-pipeline.md:

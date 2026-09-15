@@ -114,8 +114,6 @@ CHECKS = [
                          r"ctx\.lineWidth=Math\.max\(1\.5,Math\.min\(3\.4,view\.s\*\.0132\*1\.7\)\);ctx\.stroke\(\);)"),
     ("Lapsing 8-14 Days glow",
                          r"(ctx\.shadowColor='rgba\(255,133,194,\.7\)';ctx\.shadowBlur=3;)"),
-    ("Cameco Leases layer entry", r"(\{k:'cameco',label:'Cameco Leases',color:'#00AEEF', "
-                                   r"get:function\(\)\{return P\.cameco\.length;\}\},)"),
     ("Exploration History layer entries",
                          r"(\{k:'survug',label:'Underground Surveys',color:'#8A8A8A',\n"
                          r"\s*get:function\(\)\{return P\.surveys\.filter\(function\(s\)\{return s\.ty==='ug';\}\)\.length;\}\},\n"
@@ -123,13 +121,14 @@ CHECKS = [
                          r"\s*get:function\(\)\{return P\.surveys\.filter\(function\(s\)\{return s\.ty==='ground';\}\)\.length;\}\},\n"
                          r"\s*\{k:'survair',label:'Airborne Surveys',color:'#8FA8D9',\n"
                          r"\s*get:function\(\)\{return P\.surveys\.filter\(function\(s\)\{return s\.ty==='air';\}\)\.length;\}\},)"),
-    ("Cameco Leases rendering", r"(if\(ON\.cameco&&P\.cameco\.length\)\{ctx\.save\(\);[\s\S]*?ctx\.restore\(\);\})"),
     ("Exploration History rendering",
                          r"(if\(\(ON\.survground\|\|ON\.survair\|\|ON\.survug\)&&P\.surveys\.length\)\{ctx\.save\(\);[\s\S]*?ctx\.restore\(\);\})"),
-    ("Cameco/survey pick integration",
-                         r"(if\(ON\.cameco\)\{for\(var jcm=0[\s\S]*?if\(inRing\(SV\.r,mx,my\)\)return\{t:'survey',o:SV\};\}\})"),
-    ("Cameco/survey tooltip content",
-                         r"(else if\(h\.t==='cameco'\)s='<b>Cameco Leases</b>[\s\S]*?\(o\.w\?'<div class=\"hint\">'\+esc\(o\.w\)\+'</div>':''\);\})"),
+    ("Survey pick integration",
+                         r"(if\(ON\.survground\|\|ON\.survair\|\|ON\.survug\)\{var survOnPick=[\s\S]*?if\(inRing\(SV\.r,mx,my\)\)return\{t:'survey',o:SV\};\}\})"),
+    ("Survey tooltip content",
+                         r"(else if\(h\.t==='survey'\)\{var svLab=[\s\S]*?click to search the Mineral Assessment Database'\+\(o\.fn\?' for '\+esc\(o\.fn\):''\)\+'</div>';\})"),
+    ("Survey click-to-source-link handler",
+                         r"(if\(h\.t==='survey'\)\{\n[\s\S]*?openLink\('http://mineral-assessment\.saskatchewan\.ca/Pages/BasePages/Main\.aspx\?UseCase=ExternalSearch'\);\n\s*return;\n\s*\})"),
     ("Tiny-claim halo helper", r"(function tinyClaimHalo\(r,rgba\)\{[\s\S]*?\n\})"),
 ]
 
