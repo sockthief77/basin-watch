@@ -98,9 +98,12 @@ h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
    page's own --ground, which is what's directly behind this header) to mask the ::after
    rule line passing underneath it. h2.sec needs position:relative for this to anchor to
    the row itself rather than the page. */
-h2.sec{position:relative}
-h2.sec .lggroup{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  display:flex;align-items:center;gap:14px;background:var(--ground);padding:0 10px}
+/* Site build note 2026-09-15: the artifact's absolute-center-on-row trick assumed a
+   narrower header row; on the site's wider .wrap the centered box landed on top of the
+   title text instead of beside it. Using a plain inline flex layout here instead - robust
+   at any container width, wraps to its own line via h2.sec's existing flex-wrap if the
+   row runs out of room, never overlaps. */
+h2.sec .lggroup{display:flex;align-items:center;gap:14px}
 .seclead{color:var(--muted);font-size:13.5px;margin:0 0 16px;max-width:70ch}
 
 /* news */
