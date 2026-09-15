@@ -10,12 +10,16 @@
   color-scheme:dark;
   --ground:#272727; --surface:#323131; --surface-2:#383837; --sunk:#232323;
   --ink:#F9F9F7; --muted:#C3C2B7; --faint:#97958D; --line:#444341; --line-soft:#343432;
-  --accent:#D97757; --accent-ink:#F0A382; --accent-soft:#3D2A21;
+  /* General UI accent (buttons, links, focus outlines) desaturated off orange->terracotta
+     2026-09-15 - it was competing with the map's own Milestone/materiality orange
+     (#FF7A1A) right next to it in the same view. A neutral warm stone keeps the UI
+     chrome out of the way so orange means one thing on the page: Milestone. */
+  --accent:#9C9890; --accent-ink:#D8D4C8; --accent-soft:#38362F;
   --hot:#E9764F; --hot-soft:#331F17;
   --home:#5FADEA; --home-soft:#12283A;
   --cvv:#B295DC; --cosa:#3CB3A0; --syh:#DCA24A; --gem:#B9BE79; --ind:#77817A;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sother:#6f7970;
-  --basinfill:rgba(224,136,103,.16); --basinline:rgba(224,136,103,.7); --hwline:rgba(255,255,255,.85);
+  --basinfill:rgba(224,136,103,.128); --basinline:rgba(224,136,103,.7); --hwline:rgba(255,255,255,.85);
   --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
 }
 /* Dark mode is the only mode for this page, always - explicit requirement, set 2026-09-08.
@@ -93,6 +97,8 @@ h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
 .rank{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--faint);
   padding-top:3px;font-weight:500}
 .item.lead .rank{color:var(--hot);font-weight:600}
+.rank.linked{cursor:pointer}
+.rank.linked:hover{text-decoration:underline}
 .hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;min-height:0}
 .co{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17.5px;letter-spacing:-.005em}
 .tk{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
@@ -160,7 +166,6 @@ footer .srcs{columns:2;column-gap:28px;margin-top:8px}
 .mbtn:hover{border-color:var(--accent)}
 .mbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .mbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.measout{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);align-self:center;margin-left:2px}
 
 .layerbar{display:flex;flex-direction:column;gap:3px;padding-right:4px}
 .heatbar{position:static;max-height:none;margin-top:18px;padding:10px 4px 4px;
@@ -174,20 +179,38 @@ footer .srcs{columns:2;column-gap:28px;margin-top:8px}
 .lyr{display:flex;align-items:center;gap:5px;font-size:10.5px;padding:3px 7px;white-space:nowrap;
   border:1px solid var(--line);background:var(--surface-2);cursor:pointer;user-select:none;color:var(--muted)}
 .lyr input{position:absolute;opacity:0;width:0;height:0}
-.lyr .kx{width:8px;height:8px;border-radius:50%;flex:0 0 auto;opacity:.35}
+/* Ring added 2026-09-15 - a dark swatch (Mines & Mills' black) was reading as invisible
+   against the dark panel background; a light ring keeps every swatch legible regardless
+   of its own fill colour, not just a special case for black. */
+.lyr .kx{width:8px;height:8px;border-radius:50%;flex:0 0 auto;opacity:.35;
+  box-shadow:0 0 0 1px rgba(255,255,255,.3) inset}
+.lyr .kx2{display:inline-flex;flex:0 0 auto}
+.lyr .kx2 .kx:last-child{margin-left:-3px}
 .lyr.on{color:var(--ink);border-color:var(--faint);background:var(--surface)}
 .lyr.on .kx{opacity:1}
 .lyr:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 .lyr .ct{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--faint);margin-left:auto}
+/* Layer-bar group headers, added 2026-09-15 - the toggle list was a flat 13 items with no
+   visual separation between land-status, news-release and geology layers, even though the
+   order already roughly clustered them. Same uppercase-label language as .ctrlhd on the
+   right-hand panel, but not collapsible - this is a list people scan constantly while
+   looking at the map, not a reference list opened occasionally. */
+.lyrgrouphd{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);
+  font-weight:600;padding:2px 7px 3px}
+.lyrgrouphd.rule{margin-top:10px;padding-top:9px;border-top:1px solid var(--line-soft)}
 @media(max-width:900px){.layercol{position:static}
   .layerbar{position:static;max-height:none;flex-direction:row;flex-wrap:wrap;margin-bottom:10px}
   .lyr{flex:0 0 auto}.lyrgrp{flex:0 0 auto}.lyr .ct{margin-left:0}}
 @media(max-width:900px){.heatbar{margin-top:0;border-top:none;padding-top:0}}
 
-.mapgrid{display:grid;grid-template-columns:196px 1fr 300px;gap:16px;align-items:start}
-.layercol{display:flex;flex-direction:column;min-height:0;position:sticky;top:14px}
+/* Sidebar columns narrowed 2026-09-15 (was 196/300, briefly widened to 216/336 same day
+   then reverted narrower still) - the long-name problem is now solved by shortening the
+   displayed label (displayHolder(), strips "Ltd."/"Inc."/"(Saskatchewan)" etc. for display
+   only) rather than by giving the sidebar more room. */
+.mapgrid{display:grid;grid-template-columns:190px 1fr 280px;gap:16px;align-items:start}
+.layercol{display:flex;flex-direction:column;min-height:0;position:static}
 @media(max-width:900px){.mapgrid{grid-template-columns:1fr}}
-.mapctrl{position:sticky;top:14px;max-height:650px;overflow-y:auto;padding-right:6px;
+.mapctrl{position:static;padding-right:6px;
   border:1px solid var(--line);background:var(--surface-2);padding:12px 14px}
 @media(max-width:900px){.mapctrl{position:static;max-height:none}}
 .mapstage{position:relative;background:var(--sunk);border:1px solid var(--line);
@@ -209,16 +232,13 @@ footer .srcs{columns:2;column-gap:28px;margin-top:8px}
 .scalebar span{display:block;height:5px;border:1px solid var(--muted);border-top:none}
 .mapempty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;
   padding:24px;font-size:13px;color:var(--muted);background:var(--sunk)}
-/* Click-to-interact hint, added 2026-09-12/13 - sits over the map, pointer-events:none
-   so it never blocks the click it's asking for. Text/position/activation-area match the
-   final 2026-09-13 revision (top-left, whole map card counts as "interacting"). */
+/* Click-to-interact hint, added 2026-09-12 - see the wheel-handler gate in the JS below.
+   Sits over the map, pointer-events:none so it never blocks the click it's asking for. */
 .mapactivate{position:absolute;left:12px;top:12px;
   background:rgba(30,30,30,.88);color:var(--muted);font-size:11.5px;line-height:1.3;
   padding:6px 12px;border:1px solid var(--line);border-radius:3px;
   pointer-events:none;white-space:nowrap;z-index:6}
 .mapactivate[hidden]{display:none}
-.rank.linked{cursor:pointer}
-.rank.linked:hover{text-decoration:underline}
 
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
   gap:10px 18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
@@ -229,9 +249,15 @@ footer .srcs{columns:2;column-gap:28px;margin-top:8px}
 .fgrp .fv{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;
   padding-top:12px;border-top:1px solid var(--line-soft)}
-.lg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+/* flex-wrap + .nm{white-space:nowrap} added 2026-09-15 - a long holder name ("Standard
+   Uranium (Saskatchewan) Ltd.") was breaking mid-word when the row ran out of width.
+   Now the name wraps as a whole unit onto its own line (still one piece, not fractured)
+   and the count drops below it, instead of the browser wrapping at every space. */
+.lg{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.lg .nm{white-space:nowrap}
 .lg .ct{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--faint)}
-.sw{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+.sw{width:10px;height:10px;border-radius:2px;flex:0 0 auto;
+  box-shadow:0 0 0 1px rgba(255,255,255,.3) inset}
 .lgnote{font-size:11.5px;color:var(--faint);font-style:italic}
 .lgnote em{font-style:normal;font-weight:600}
 /* ---- control column sections (legend rework, 2026-09-08) ----
@@ -374,8 +400,7 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         </div>
         <div class="mapbtns">
           <button type="button" id="mMeasure" class="mbtn" aria-pressed="false">Measure</button>
-          <span id="measOut" class="measout"></span>
-          <button type="button" id="mReset" class="mbtn">Reset view</button>
+          <button type="button" id="mReset" class="mbtn">Reset View</button>
         </div>
       </div>
 
@@ -384,14 +409,13 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div class="tip" id="tip" hidden></div>
         <div class="scalebar"><span id="scaleLine"></span><em id="scaleTxt"></em></div>
         <div class="mapempty" id="mapempty" hidden></div>
-        <div class="mapactivate" id="mapActivateHint">Click to interact</div>
       </div>
     </div>
 
     <div class="mapctrl">
 
       <details class="ctrlsec" open>
-        <summary class="ctrlhd">This week's stakers</summary>
+        <summary class="ctrlhd">Recent Stakers</summary>
         <div class="legend" id="newclaimkey" style="margin-top:0;padding-top:8px;border-top:none"></div>
       </details>
 
@@ -406,6 +430,11 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <details class="ctrlsec">
         <summary class="ctrlhd">Top 10 holders</summary>
         <div class="legend" id="topholders" style="margin-top:0;padding-top:8px;border-top:none"></div>
+      </details>
+
+      <details class="ctrlsec" open>
+        <summary class="ctrlhd">Historical Indicators</summary>
+        <div class="layerbar" id="histbar" style="padding-top:8px"></div>
       </details>
 
     </div>
@@ -442,7 +471,7 @@ function km(a,b){var d=Math.PI/180,R=6371,dLa=(b[1]-a[1])*d,dLo=(b[0]-a[0])*d;
    below needs the inverse (which E/N line passes through a given point), so
    it numerically inverts via bisection instead of a closed-form inverse -
    simpler to get right and plenty precise for a reference grid at this
-   scale. Replaces the lat/long graticule, added 2026-09-07
+   scale. Replaces the lat/long graticule per explicit request, 2026-09-07
    (night). ---------- */
 var UTM13=(function(){
   var a=6378137.0, f=1/298.257222101, e2=f*(2-f), ep2=e2/(1-e2), k0=0.9996, lon0=-105*Math.PI/180, d=Math.PI/180;
@@ -488,8 +517,8 @@ function bisect1d(fn,lo,hi,target){ var flo=fn(lo)-target,fhi=fn(hi)-target;
    Two explicit asks, both applied at ingest so every downstream consumer
    (ranking, colouring, drawing) sees the same filtered data - no separate
    "view crop" vs "data crop" split this time (an earlier version of the
-   6250N ask was deliberately kept view-only; confirmed afterward that the
-   data itself needed to be cut, so this replaces that).
+   6250N ask was deliberately kept view-only; confirmed afterward that
+   the data itself needed to be cut, so this replaces that).
 
    1. North cutoff: drop anything that never reaches UTM Zone 13N Northing
       6,250,000 m ("Athabasca basin only"). Ring/line features keep if ANY
@@ -525,14 +554,18 @@ function inBoxOK(lon,lat){ var u=UTM13(lon,lat);
 function ringInBoxOK(r){ return (r||[]).length>0 && (r||[]).every(function(p){ return inBoxOK(p[0],p[1]); }); }
 
 /* Box clip for Lakes/Highways, added 2026-09-13, replacing the all-or-nothing
-   ringInBoxOK test above for these two layers specifically (ringInBoxOK/inBoxOK stay
-   as they were for everything that still uses them - places, the manual town list).
-   ringInBoxOK required EVERY vertex inside the box or it dropped the WHOLE feature -
-   confirmed live this was silently deleting entire major lakes and rivers whenever
-   even one point of a long, irregular shoreline strayed past a box edge. This clips
-   the ring/line to the box instead (Sutherland-Hodgman, one straight cut per edge) so
-   a feature that's mostly inside renders trimmed cleanly at the boundary rather than
-   disappearing. Uses bisect1d() (already defined above for the UTM grid ticks). */
+   ringInBoxOK test above for these two layers specifically (ringInBoxOK/inBoxOK
+   stay as they were for everything that still uses them - places, the manual
+   town list). ringInBoxOK required EVERY vertex inside the box or it dropped the
+   WHOLE feature; that silently deleted entire major lakes and rivers whenever
+   even one point of a long, irregular shoreline strayed past a box edge -
+   confirmed live: Wollaston Lake, Reindeer Lake and the Athabasca/Peace/Slave
+   rivers were vanishing completely, not just getting cut off at the margins.
+   This clips the ring/line to the box instead (Sutherland-Hodgman, one straight
+   cut per edge) so a feature that's mostly inside renders trimmed cleanly at the
+   box boundary rather than disappearing. Uses bisect1d() (already defined above
+   for the UTM grid ticks) to find where a segment crosses a given easting or
+   northing threshold, parametrizing the segment by t in [0,1]. */
 function utmE_(p){return UTM13(p[0],p[1])[0];}
 function utmN_(p){return UTM13(p[0],p[1])[1];}
 function clipParam_(prev,cur,coordFn,thresh){
@@ -576,6 +609,7 @@ function clipLineToBox(line){
   p=clipLineEdge_(p,utmN_,function(v){return v<=BOX_N_MAX;},BOX_N_MAX);
   return p;
 }
+
 var TENURE_F=(B.tenure||[]).filter(function(t){ return !isSGO(t.o)&&ringNorthOK(t.r); });
 var CLAIMS_F=(B.claims||[]).filter(function(c){ return !isSGO(c.o)&&northOK(c.x,c.y); });
 
@@ -598,11 +632,90 @@ var FAM8=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7',
    whitespace runs to one space fixes this for every holder, not just this
    one instance. */
 function shortHolder(o){ return (o||'').replace(/:\s*[\d.]+%/g,'').replace(/;\s*$/,'').replace(/\s+/g,' ').trim(); }
+/* Short display label, added 2026-09-15 - strips legal-entity boilerplate ("Ltd.", "Inc.",
+   "Corp.", a jurisdiction in parens) so the sidebar can stay narrow without a long legal
+   name wrapping or getting truncated. Isolate/click-to-select still keys off shortHolder()
+   (the full name) - this is a presentation-only trim, run twice to catch a rare double
+   suffix ("X Corp. Ltd."), falling back to the full name if stripping would empty it out. */
+function displayHolder(o){
+  var s=shortHolder(o);
+  s=s.replace(/\s*\((Saskatchewan|Alberta|Sask|AB)\)\s*/gi,' ').replace(/\s+/g,' ').trim();
+  for(var i=0;i<2;i++){
+    s=s.replace(/[,]?\s*(Ltd\.?|Limited|Inc\.?|Incorporated|Corp\.?|Corporation|LLC|LLP)\s*$/i,'').trim();
+  }
+  return s||shortHolder(o);
+}
+/* ---------- JV ownership split (added 2026-09-11) ----------
+   MARS's own OWNERS field already carries a joint venture's exact percentage
+   split verbatim - confirmed directly against the live registry, e.g.
+   "ISOENERGY LTD.: 50.000%;  PUREPOINT URANIUM GROUP INC.: 50.000%" for a
+   Dorado JV disposition. Everything downstream (map colour, Top 10 hectares,
+   tooltip) is driven from this parse, not a hand-maintained JV table - it
+   stays correct automatically as ownership changes and needs no new entry
+   when a JV forms or is restructured. A plain single-holder record (the
+   overwhelming majority) parses to one owner at 100%, so this changes
+   nothing for non-JV tenure. Alberta's registry is the one exception - it
+   names only a single "designated representative" per agreement (see
+   watchlist-and-sources.md's Rea/Orano note), so an Alberta record always
+   parses as one 100% owner here even where the real economics are split;
+   that's a known limitation, not a bug in this parse. */
+function parseOwners(o){
+  var s=String(o||'');
+  var parts=s.split(';').map(function(x){return x.trim();}).filter(Boolean);
+  if(!parts.length)return [{name:'-',pct:100}];
+  var owners=parts.map(function(p){
+    var m=p.match(/^(.*?):\s*([\d.]+)\s*%\s*$/);
+    return m?{name:m[1].replace(/\s+/g,' ').trim(),pct:parseFloat(m[2])}:{name:p.replace(/\s+/g,' ').trim(),pct:null};
+  });
+  var missing=owners.filter(function(w){return w.pct==null;});
+  if(missing.length){
+    var known=owners.reduce(function(s,w){return s+(w.pct||0);},0);
+    var each=Math.max(0,100-known)/missing.length;
+    missing.forEach(function(w){w.pct=each;});
+  }
+  return owners;
+}
+/* Single dominant name for VISUAL identity (map colour, isolate-holder
+   matching, Favourites, legends) - the largest stated interest. This is a
+   deliberate simplification: a JV polygon gets ONE colour (its largest
+   partner's), flagged as shared ground by a hatch overlay in the draw loop
+   below, rather than trying to paint every partner's share - see
+   map-pipeline.md for why a multi-wedge/diagonal-split treatment was
+   rejected (doesn't scale past two parties without looking busy). Known
+   limitation: isolating a MINORITY JV partner (e.g. Cameco's 39.5% of Hook
+   Lake) will not highlight that ground, since primaryOwner() picks the
+   plurality holder only - accepted trade-off, not fixed here. Top 10
+   hectare totals (below) are NOT subject to this simplification - those
+   split every owner's true percentage correctly regardless of rank. */
+function primaryOwner(o){
+  var owners=parseOwners(o);
+  owners.sort(function(a,b){return b.pct-a.pct;});
+  return owners[0].name;
+}
+function isJVOwners(o){ return parseOwners(o).length>1; }
 var tenureCount={};   // keyed by NORMALIZED holder name so a joint-venture's
-TENURE_F.forEach(function(t){ var o=shortHolder(t.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });  // ownership-% suffix doesn't fragment its count
+TENURE_F.forEach(function(t){ var o=primaryOwner(t.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });  // ownership-% suffix doesn't fragment its count
 if(!Object.keys(tenureCount).length)   // before the tenure pull, fall back to the week's claims
-  CLAIMS_F.forEach(function(c){ var o=shortHolder(c.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });
+  CLAIMS_F.forEach(function(c){ var o=primaryOwner(c.o)||'-'; tenureCount[o]=(tenureCount[o]||0)+1; });
 var topHolders=Object.keys(tenureCount).sort(function(a,b){return tenureCount[b]-tenureCount[a];});
+/* ---------- Top 10 hectares, split by true ownership % (added 2026-09-11) ----
+   tenureCount above is a PARCEL COUNT and stays that way - it still drives the
+   Favourites list and legend badges exactly as before. holderHa is a separate,
+   AREA-based total used only by the Top 10 Holders list: every tenure record's
+   hectares (polyAreaHa) are divided across every real owner named in OWNERS by
+   their stated percentage - a JV parcel therefore contributes a fraction of its
+   area to EACH partner's total, not the whole area to whichever one happens to
+   be primaryOwner(). This is what makes Top 10 "financial ownership" rather
+   than "who the polygon is drawn in the colour of". Single-owner records (the
+   majority) are unaffected - 100% of their area goes to their one owner, same
+   as counting them once did. */
+var holderHa={};
+TENURE_F.forEach(function(t){
+  var ha=polyAreaHa(t.r); if(!ha)return;
+  parseOwners(t.o).forEach(function(w){
+    var nm=w.name||'-'; holderHa[nm]=(holderHa[nm]||0)+ha*(w.pct/100);
+  });
+});
 /* same corp/individual test the data pipeline uses for new-claim's `corp`
    flag (basin_layers.py: URANIUM/RESOURCES/GEM OIL/CORP/LTD/INC in the
    holder string), reimplemented here so it applies to EVERY holder, not
@@ -611,8 +724,8 @@ var topHolders=Object.keys(tenureCount).sort(function(a,b){return tenureCount[b]
 function isCorp(name){ var n=(name||'').toUpperCase();
   return n.indexOf('URANIUM')>=0||n.indexOf('RESOURCES')>=0||n.indexOf('GEM OIL')>=0||
          n.indexOf('CORP')>=0||n.indexOf('LTD')>=0||n.indexOf('INC')>=0; }
-var topCorpHolders=topHolders.filter(isCorp);
-/* 2026-09-07 (night): raised past the all-pairs 3-colour ceiling on
+var topCorpHolders=topHolders.filter(isCorp).sort(function(a,b){return (holderHa[b]||0)-(holderHa[a]||0);});
+/* 2026-09-07 (night): raised past the all-pairs 3-colour ceiling per explicit
    explicit instruction, in three steps. (1) validated 8-hue family twice,
    solid for ranks 1-8 + hatched for ranks 9-16. (2) dropped the hatch, 16
    unique solid hues, evenly spaced. (3) final ask: EVERY named corporate
@@ -630,12 +743,12 @@ var topCorpHolders=topHolders.filter(isCorp);
    well-spread. Concretely: hue(0)=0°, hue(1)=137.5°, hue(2)=275°,
    hue(3)=52.5° - the first 4 ranks alone span the wheel almost evenly,
    long before rank 170 ever fills in a gap between them. Later, closely-
-   spaced ranks are the small holders explicitly flagged as not needing to
-   be distinct - not the big ones. Not run through validate_palette.js, an
-   explicitly accepted trade-off (see map-pipeline.md
+   spaced ranks are the small holders that explicitly don't need
+   distinct - not the big ones. Not run through validate_palette.js, on
+   Deliberate acceptance of that trade-off (see map-pipeline.md
    "Holder colour rule"). Ranking is over CORPORATE holders only
    (`topCorpHolders`) - a named individual never gets a slot here, however
-   much ground they hold, on a separate explicit instruction: an
+   much ground they hold, per a separate explicit instruction: an
    individual staker isn't the entity whose activity matters until the
    claim is registered to an actual company, same principle as the
    new-claims layer below. */
@@ -693,13 +806,30 @@ Object.keys(HCOL).forEach(function(h){ HCOL_UP[h.toUpperCase()]=HCOL[h]; });
    Alberta claim (all-caps holder string) resolves to the same colour as the Sask
    listing for the same company. */
 function hcolFor(h){ return HCOL[h]||HCOL_UP[h.toUpperCase()]||null; }
-function holderColor(o){ var h=shortHolder(o);
-  if(F.holder) return (h===F.holder||h.toUpperCase()===F.holder.toUpperCase())?(hcolFor(h)||SLOT[0]):OTHER;
+/* Isolate-holder sentinel for the 'named individuals' bucket in Recent Stakers,
+   added 2026-09-15 - F.holder can now be either an exact holder string or this
+   sentinel, meaning "every non-corporate staker" (isCorp(h) false). holderSel()
+   is the single comparison every isolate-mode filter/colour site should use. */
+var IND_SENTINEL='__INDIVIDUALS__';
+function holderSel(h){ if(!h)return false;
+  if(F.holder===IND_SENTINEL) return !isCorp(h);
+  return h===F.holder||h.toUpperCase()===F.holder.toUpperCase(); }
+/* Isolated-individual highlight colour, added 2026-09-15 - a plain named individual
+   has no HCOL entry, so isolating "named individuals" used to fall back to SLOT[0]
+   (the default isolate blue), which read as too close to Standard Uranium's own
+   house blue (#3a4da8). Individuals are documented "always grey" everywhere else on
+   this map, so isolating them highlights in a brighter grey instead of switching
+   to blue - a lighter tone than OTHER's dim grey so isolate mode still pops, but
+   it stays grey rather than reading as a company colour. */
+var IND_HILITE='#d6dad6';
+function isoHi(){ return (F.holder===IND_SENTINEL)?IND_HILITE:SLOT[0]; }
+function holderColor(o){ var h=primaryOwner(o);
+  if(F.holder) return holderSel(h)?(hcolFor(h)||isoHi()):OTHER;
   return hcolFor(h)||OTHER; }
 
 /* ---------- new-claim colours: every CORPORATE staker this week gets its own
    colour from the 8-hue family (not just the top 3) - named individuals stay
-   grey always, on explicit instruction (2026-09-07): they're agents/
+   grey always, per explicit instruction (2026-09-07): they're agents/
    stakers, not the entity whose activity matters here, and lumping them in
    with the ranking buried the actual companies. `corp` already comes through
    the data pipeline (basin_layers.py flags URANIUM/RESOURCES/CORP/LTD/INC/
@@ -714,13 +844,13 @@ function holderColor(o){ var h=shortHolder(o);
    3 companies/colours as the existing-tenure layer), so a spotlit company
    still reads consistently across old + new claims. ---------- */
 var newCorpCount={};
-CLAIMS_F.forEach(function(c){ if(!c.corp)return; var o=shortHolder(c.o)||'-'; newCorpCount[o]=(newCorpCount[o]||0)+1; });
+CLAIMS_F.forEach(function(c){ if(!c.corp)return; var o=primaryOwner(c.o)||'-'; newCorpCount[o]=(newCorpCount[o]||0)+1; });
 var newTopHolders=Object.keys(newCorpCount).sort(function(a,b){return newCorpCount[b]-newCorpCount[a];});
 var NEWHCOL={}; newTopHolders.slice(0,8).forEach(function(h,i){ NEWHCOL[h]=FAM8[i]; });
 var newCount=newCorpCount; // kept for the legend/count lookups below
-function newClaimColor(o,corp){ var h=shortHolder(o);
+function newClaimColor(o,corp){ var h=primaryOwner(o);
   if(FAVN) return F.fav[h]?(HCOL[h]||NEWHCOL[h]||SLOT[0]):FAVDIM;
-  if(F.holder) return h===F.holder?(HCOL[h]||NEWHCOL[h]||SLOT[0]):OTHER;
+  if(F.holder) return holderSel(h)?(HCOL[h]||NEWHCOL[h]||isoHi()):OTHER;
   if(!corp) return OTHER;
   /* Coloured from HCOL - same per-holder map Sask Tenure/Claim Outlines uses -
      not NEWHCOL, 2026-09-09. See the identical fix and comment in shell.html /
@@ -737,8 +867,8 @@ function projRing(r,track){var o=[],bx0=1e18,by0=1e18,bx1=-1e18,by1=-1e18;
     if(p[0]<bx0)bx0=p[0]; if(p[0]>bx1)bx1=p[0]; if(p[1]<by0)by0=p[1]; if(p[1]>by1)by1=p[1];}
   return {r:o,b:[bx0,by0,bx1,by1]};}
 /* Deposit footprints are true-to-scale orebody outlines - often only a few
-   hundred metres across, effectively invisible at whole-basin zoom. A
-   buffer around them was requested (2026-09-07) so they read as a small blob
+   hundred metres across, effectively invisible at whole-basin zoom. A buffer
+   was requested around them (2026-09-07) so they read as a small blob
    rather than vanishing. Real polygon offsetting (proper edge-normal buffer)
    is overkill for this - these are small, roughly-convex shapes, so this
    pushes every vertex outward from the ring's own centroid by a fixed
@@ -766,10 +896,14 @@ function daysUntil(iso){ if(!iso)return null; var d=new Date(iso+'T00:00:00Z');
 TENURE_F.forEach(function(t){ var pr=projRing(t.r,true);
   var dLeft=daysUntil(t.x);
   var lapseSoon=(dLeft!==null&&dLeft>=0&&dLeft<=7);
-  var dep=lapseSoon?depositFor(t.e,t.x,polyAreaHa(t.r)):null;
+  /* Second, wider tier added 2026-09-11 ("widen the net a bit on claiming") - not
+     urgent yet, but coming up inside two weeks. No new data needed - GOODSTANDI (t.x) via
+     dLeft already carries everything, this is just a second band on the same number. */
+  var lapseSoon2=(dLeft!==null&&dLeft>=8&&dLeft<=14);
+  var dep=(lapseSoon||lapseSoon2)?depositFor(t.e,t.x,polyAreaHa(t.r)):null;
   P.tenure.push({r:pr.r,b:pr.b,d:t.d,o:t.o,e:t.e,st:t.st,x:t.x,
     isNew:!!(t.d&&NEWIDS[t.d]), corp:!!(t.d&&NEWCORP[t.d]),
-    lapseSoon:lapseSoon, dep:dep}); });
+    lapseSoon:lapseSoon, lapseSoon2:lapseSoon2, dep:dep}); });
 CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
   P.claims.push({p:p,ll:[c.x,c.y],d:c.d,o:c.o,e:c.e,corp:!!c.corp,orphan:!(c.d&&TENIDS[c.d])}); });
 (B.lakes||[]).forEach(function(l){ var cr=clipRingToBox(l.r); if(cr.length<3)return; P.lakes.push({r:projRing(cr,false).r,n:l.n,a:l.a}); });
@@ -805,15 +939,19 @@ CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
    framing still stops at 6250N as asked and the map does not stretch south to
    reach it. Pan south of the basin to see it. Fond du Lac added 2026-09-08 -
    coordinates from its Wikipedia geo entry (59.3498, -107.0138), not yet
-   confirmed by UTM per the stated coordinate preference (see "Coordinates:
+   confirmed by the project's own UTM per its stated coordinate preference (see "Coordinates:
    UTM only" in map-pipeline.md); flag it if it turns out wrong the way Points
    North Landing's first guess did. Well north of the 6250N cut, so it renders
    in the default view like Points North Landing and La Loche. */
-[["Points North Landing",-104.0817,58.2703],["Pinehouse",-106.5833,55.5333],
- ["La Loche",-109.4425,56.4881],["Fond du Lac",-107.0138,59.3498]].forEach(function(t){
+/* Points North Landing and La Loche de-flagged from always-on 2026-09-15 (Ezra's request) -
+   k left blank so they follow the same big-zoom-only label rule as every other place point,
+   instead of always showing their name at reset view like the two remaining always-on
+   entries (Pinehouse, Fond du Lac) still do. */
+[["Points North Landing",-104.0817,58.2703,''],["Pinehouse",-106.5833,55.5333,'Town'],
+ ["La Loche",-109.4425,56.4881,''],["Fond du Lac",-107.0138,59.3498,'']].forEach(function(t){
   if(!inBoxOK(t[1],t[2]))return;
   var p=PROJ(t[1],t[2]); ext(p);
-  P.places.push({p:p,ll:[t[1],t[2]],n:t[0],k:'Town'}); });
+  P.places.push({p:p,ll:[t[1],t[2]],n:t[0],k:t[3]}); });
 (B.highways||[]).forEach(function(h){ var cl=clipLineToBox(h.p); if(cl.length<2)return; P.hw.push({r:projRing(cl,true).r,n:h.n}); });
 (B.footprints||[]).forEach(function(f){ if(!ringNorthOK(f.r))return;
   P.foots.push({r:bufferRing(projRing(f.r,true).r,FOOT_BUFFER_KM),a:f.a}); });
@@ -868,48 +1006,42 @@ CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
    rules and the anchor hierarchy the brief follows. */
 var NEWSTYPE={
   grade:{lab:'Grade result'},
+  cps:  {lab:'Fresh cps reading'},
   geo:  {lab:'Geophysics / survey'},
-  drill:{lab:'Drill program / permit'},
-  cps:  {lab:'Fresh cps reading'}, /* added 2026-09-13 - split out of 'drill': a program
-    start/mobilization/permit has no reading yet (stays 'drill', Other News yellow); this is
-    specifically for a release whose own headline content is a fresh handheld/downhole cps
-    number, matching the purple used for .g-cps prose */
+  drillc:{lab:'Drilling completed'},
+  drill:{lab:'Drill mobilization / permit'},
   deal: {lab:'Property deal'},
-  mre:  {lab:'Resource estimate / study'},
-  fin:  {lab:'Financing'}}; /* added 2026-09-13 - a private placement/financing isn't a "deal"
-  (property transaction) or any other existing type */
+  mre:  {lab:'Resource estimate / major milestone'},
+  fin:  {lab:'Financing'}};
 var ANCLAB={collar:'surveyed collar',deposit:'offset from a mapped deposit',
   claims:'centroid of the holder\'s claim block',figure:'read off a release figure'};
 /* Default uncertainty when a waypoint doesn't state its own. A surveyed collar is exact;
    everything else gets a ring big enough to stop the star being read as a position it
    isn't. */
 var ANCUNC={collar:0,deposit:1.5,claims:6,figure:2};
-/* Every non-grade waypoint is one light jasper blue, on explicit instruction 2026-09-08 -
+/* Every non-grade waypoint is one light jasper blue, per explicit instruction 2026-09-08 -
    NOT the company's own holder colour. A first pass filled these from HCOL so a waypoint
-   matched the ground under it; he asked for a single colour instead. Keep it that way: the
+   matched the ground under it; a single colour was requested instead. Keep it that way: the
    waypoint layer reads as one thing sitting on top of the map, and the company is named on
    hover. Grade stars stay bright green. */
 var NEWSXCOL='#ffe600';
-var NEWSDCOL='#B266FF'; /* brightened further 2026-09-13 (2nd pass) - was #C9A2FF, then #B295DC originally */
-var NEWSGEOCOL='#FF7A1A'; /* added 2026-09-13 - geophysics/survey releases get their own bright orange star, but stay folded into the Other News TOGGLE (not a separate legend row) so the layer bar doesn't grow a 4th news entry */ /* 2026-09-13: Drill Results (fresh cps, ty==='drill') - matches .g-cps prose colour */
+var NEWSDCOL='#B266FF';
+var NEWSGEOCOL='#FF7A1A';
 (B.news||[]).forEach(function(w){ if(!northOK(w.x,w.y))return; var p=PROJ(w.x,w.y); ext(p);
   var ty=w.ty||w.t||'grade', an=w.anc||'deposit';
   P.news.push({p:p,ll:[w.x,w.y],n:w.n,co:w.co,g:w.g,when:w.when,url:w.url,note:w.note,
     ty:ty, anc:an, unc:(w.unc==null?(ANCUNC[an]||0):+w.unc),
     num:(w.num==null?null:+w.num),
-    col:(ty==='grade'?'#00e64d':ty==='cps'?NEWSDCOL:ty==='geo'?NEWSGEOCOL:NEWSXCOL)}); }); /* 2026-09-13 (2nd pass): geophysics/survey releases now get their own orange, everything else (drill mobilization/permit, financing, property deal, resource estimate) stays the Other News yellow catch-all */
+    col:(ty==='grade'?'#00e64d':(ty==='cps'?NEWSDCOL:((ty==='geo'||ty==='mre'||ty==='drillc')?NEWSGEOCOL:NEWSXCOL)))}); });
 var NEWSG=P.news.filter(function(w){return w.ty==='grade';});
 var NEWSD=P.news.filter(function(w){return w.ty==='cps';});
-var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='cps';}); /* 2026-09-13 (2nd pass):
-  still one bucket/toggle (ON.newsx) for geo + every other non-grade/non-cps type - geo items just
-  carry their own orange w.col already, set above, so the SAME toggle draws two colours without a
-  separate legend row or ON flag for geo specifically. Keeps the layer bar from growing a 4th
-  news entry per the explicit ask to keep it less busy. */
+var NEWSO=P.news.filter(function(w){return w.ty==='geo'||w.ty==='mre'||w.ty==='drillc';});
+var NEWSX=P.news.filter(function(w){return w.ty!=='grade'&&w.ty!=='cps'&&w.ty!=='geo'&&w.ty!=='mre'&&w.ty!=='drillc';});
 /* One star for every waypoint, whatever its type - per explicit instruction 2026-09-08. A per-type glyph set
    (diamond/triangle/square/hexagon) was built first and dropped the same day: type is carried
    by COLOUR (green = grade, jasper blue = everything else) and named in words on hover, not
    by shape. Don't reintroduce shape encoding without asking. */
-function newsGlyph(x,y,ty){var r=7.854,r2=r*.42;ctx.beginPath(); /* 2026-09-13: 10% larger (was 7.14), explicit request - no zoom-scaling added, same flat size at every zoom as before */
+function newsGlyph(x,y,ty){var r=7.14,r2=r*.42;ctx.beginPath();
   for(var i=0;i<10;i++){var rad=i%2===0?r:r2,a=-Math.PI/2+i*Math.PI/5;
     var px=x+rad*Math.cos(a),py=y+rad*Math.sin(a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
   ctx.closePath();}
@@ -921,32 +1053,37 @@ var SMDI_MAXPPM=P.smdi.reduce(function(m,d){return Math.max(m,d.ppm||0);},1);
 var hasData=P.tenure.length||P.claims.length||P.deps.length||P.conds.length||P.heat.length||P.news.length;
 if(!hasData){minx=-400;maxx=400;miny=-400;maxy=400;}
 
-/* Order and capitalization set by explicit instruction 2026-09-08. Major lakes, Basin outline, Highways and
+/* Order and capitalization set 2026-09-08. Major lakes, Basin outline, Highways and
    Towns & settlements were dropped from this list the same day - they're permanent basemap
    context now (see the always-on block below ON's definition), not viewer-toggleable. */
 var LAYERS=[
  {k:'claim', label:'New Claims',    color:'#ffffff', get:function(){return P.claims.length;}},
  {k:'lapse', label:'Lapsing Within 7 Days',color:'#ff1493',get:function(){return P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;}).length;}},
- {k:'lapse2',label:'Lapsing 8-14 Days',color:'#ff85c2',get:function(){return P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;}).length;}}, /* added 2026-09-13 - was missing entirely from Explorer, present on Basin Watch since 2026-09-11 */
- {k:'news',  label:'Grade Releases',  color:'#00e64d', get:function(){return NEWSG.length;}},
- {k:'newsd', label:'Drill Results',   color:'#B295DC', get:function(){return NEWSD.length;}},
- {k:'newsx', label:'Other News',      color:'#ffe600', get:function(){return NEWSX.length;}},
+ {k:'lapse2',label:'Lapsing 8-14 Days',color:'#ff85c2',get:function(){return P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;}).length;}},
+ {k:'news',  label:'Assayed Grade',            color:'#00e64d', get:function(){return NEWSG.length;}},
+ {k:'newsd', label:'CPS Reading',                color:'#B266FF', get:function(){return NEWSD.length;}},
+ {k:'newso', label:'Survey, Drill, or Study',   color:'#FF7A1A', get:function(){return NEWSO.length;}},
+ {k:'newsx', label:'Financing, Deal, Mobilize', color:'#ffe600', get:function(){return NEWSX.length;}},
  {k:'tenure',label:'Tenure (SK+AB)', color:SLOT[0],  get:function(){return P.tenure.length+P.ab.length;}},
  {k:'lapall',label:'Lapsed Claims', color:'#f5921e', get:function(){return P.lapreg.length;}},
  {k:'dep',   label:'Uranium Deposits',    color:'#ff0000', get:function(){return P.deps.length;}},
  {k:'foot',  label:'Deposit Footprints',color:'#ff0000',get:function(){return P.foots.length;}},
  {k:'mine',  label:'Mines & Mills', color:'#000000', get:function(){return P.mines.length;}},
  {k:'cond',  label:'EM Conductors', color:'#bebebe', get:function(){return P.conds.length;}},
- {k:'restricted',label:'Restricted Lands',color:'#ffffff', get:function(){return P.restricted.length;}},
- {k:'smdi',  label:'SMDI Grade', color:'#f97316', get:function(){return P.smdi.length;}},
+ /* Swatch muted off pure white 2026-09-15 - was visually identical to New Claims' dot
+    in this list (both crisp white); the map's own restricted-lands fill is already a
+    translucent white so a slightly muted grey here still reads as "the same thing". */
+ {k:'restricted',label:'Verboten',color:'#c7c9c2', get:function(){return P.restricted.length;}},
+ {k:'smdi',  label:'SMDI Grade', color:'#38BDF8', get:function(){return P.smdi.length;}},
  {k:'heat',  label:'Boulder Heat',  color:'#e6b40a', get:function(){return P.heat.length;}},
  {k:'geochem',label:'Lake & Soil Heat', color:'#2dd4bf', get:function(){return P.geochem.length;}}
 ];
 /* Heat-style layers (density/interpolated surfaces rather than discrete features)
-   split into their own box below the main toggles, 2026-09-09 night, per an explicit
+   split into their own box below the main toggles, 2026-09-09 night, per explicit
    request. HEATKEYS controls both the split and the box's internal order. */
 var HEATKEYS=['smdi','heat','geochem'];
 var ON={}; LAYERS.forEach(function(l){ ON[l.k]=true; });
+ON.dep=false;
 /* Claim outlines off by default, 2026-09-08 - ~7,500 polygons drawn on every load made the map busy before a viewer had picked a holder or a favourite; everything else still starts on. Toggle it back on any time from the layer bar. */
 ON.tenure=false;
 
@@ -960,7 +1097,7 @@ ON.geochem=false;
 ON.restricted=false;
 /* Lapsed Claims off by default, added 2026-09-09 - the full lapsed-disposition register
    (hundreds of records), distinct from Recently Lapsed (which only shows new-since-
-   last-export deltas). Requested as a separate toggle after finding a claim
+   last-export deltas). A separate toggle was requested for this after finding a claim
    MARS still marks lapsed (MC00018892) invisible on the map because it lapsed before
    the Recently Lapsed baseline snapshot. Toggle it on any time from the layer bar. */
 ON.lapall=false;
@@ -976,17 +1113,16 @@ ON.mine=false;
    any other line layer and drawn on every load before a viewer asked for it. Toggle
    it on any time from the layer bar. */
 ON.cond=false;
+/* Lapsing 8-14 Days off by default, added 2026-09-11 - a secondary/wider-net layer,
+   same reasoning as the other off-by-default layers above. Toggle it on any time. */
 ON.lapse2=false;
-/* Uranium Deposits off by default, added 2026-09-13 - explicit request. Toggle it on
-   any time from the layer bar. */
-ON.dep=false; /* added 2026-09-13 - see LAYERS note above */
 /* Major lakes, basin outline, highways and towns/settlements are permanent background context,
    2026-09-08 - no longer viewer-toggleable (see LAYERS above), always drawn. */
 ON.lake=true; ON.basin=true; ON.hw=true; ON.place=true;
 
 /* ---------- view ---------- */
 var view={s:1,tx:0,ty:0},W=0,H=0,DPR=1,home=null;
-var HOMEBOX=[-314.31,-315.45,193.79,0.29]; /* reframed 2026-09-13 (2nd time today) per a supplied screenshot - back-solved the same way as every prior reframe: Fond du Lac (-107.0138,59.3498) and Points North Landing (-104.0817,58.2703) fitted to PROJ() to recover scale/translation, then bw=(W-52)/s, bh=(H-52)/s about the observed centre. Verified by rebuilding and screenshotting: town positions land within a few % of the reference image. Do not "restore" earlier values. */
+var HOMEBOX=[-298.27,-319.38,224.52,55.61]; /* [minx,miny,maxx,maxy], fixed reset-view extent - a hand-set framing, NOT the data extent and no longer basin_layers.py's working bounding box. Originally [-343.74,-384.28,259.80,72.69] (the UTM13N E100,000-700,000 / N6,250,000-6,700,000 filter box); reframed 2026-09-09 night to [-261.47,-310.64,199.69,38.50], then reframed again 2026-09-11 to this box - an explicit ask, "same centering, same zoom amount" as the standalone Basin Explorer screenshot supplied for reference. Box was back-solved from that screenshot so fit() (pad=26, min-of-both-axes) reproduces it: three town markers (Fond du Lac, Points North Landing, La Loche) were fitted to the LCC PROJ() to recover scale/translation, then bw=(W-52)/s, bh=(H-52)/s about the observed centre. Do not "restore" earlier values. */
 function fit(){var pad=26,bw=Math.max(1,HOMEBOX[2]-HOMEBOX[0]),bh=Math.max(1,HOMEBOX[3]-HOMEBOX[1]);
   view.s=Math.min((W-pad*2)/bw,(H-pad*2)/bh);
   view.tx=W/2-((HOMEBOX[0]+HOMEBOX[2])/2)*view.s; view.ty=H/2-((HOMEBOX[1]+HOMEBOX[3])/2)*view.s;
@@ -1001,7 +1137,7 @@ function resize(){DPR=Math.min(2,window.devicePixelRatio||1);
 
 var F={holder:'',status:'',cyear:'',ctype:'',cps:0,uppm:0,newOnly:false,fav:{}};
 /* ---------- Favourites (replaced the three Spotlight pickers, 2026-09-08) ----
-   Requested: a searchable checkbox list that can put ANY number of operators
+   A searchable checkbox list was requested that can put ANY number of operators
    on the map at once, rather than three dropdown slots. Each favourite keeps the
    colour it already has everywhere else (HCOL, the per-holder golden-angle hue),
    so a company looks the same whether or not it is favourited - only the
@@ -1030,10 +1166,10 @@ function favMatchesCo(co){ if(!FAVN)return true;
   return favKeys().some(function(k){
     var w=String(k).toUpperCase().replace(/[^A-Z ]/g,' ').trim().split(/\s+/)[0];
     return w && w.length>3 && c.indexOf(w)>=0; }); }
-function activeColor(o){ var h=shortHolder(o);
+function activeColor(o){ var h=primaryOwner(o);
   if(FAVN) return (F.fav[h]||FAV_UP[h.toUpperCase()])?(hcolFor(h)||SLOT[0]):FAVDIM;
   return holderColor(o); }
-function tenVis(t){ if(F.holder&&shortHolder(t.o)!==F.holder) return false;
+function tenVis(t){ if(F.holder&&!holderSel(primaryOwner(t.o))) return false;
   if(F.newOnly&&!(t.e&&t.e>='2026-09-01')) return false; return true; }
 function condVis(c){ if(F.cyear&&String(c.y)!==F.cyear)return false;
   if(F.ctype&&c.t!==F.ctype)return false; return true; }
@@ -1047,24 +1183,28 @@ function draw(){
   var line=tok('--line','#E8E6DE'),muted=tok('--muted','#6B6A66'),surf=tok('--surface','#fff');
 
   if(ON.lake&&P.lakes.length){ctx.save();
-    ctx.fillStyle='rgba(61,111,138,.323)';ctx.strokeStyle='rgba(61,111,138,.51)';ctx.lineWidth=.7; /* 2026-09-13: 15% more translucent, was .38 fill / .6 stroke, explicit request */
+    ctx.fillStyle='rgba(61,111,138,.38)';ctx.strokeStyle='rgba(61,111,138,.6)';ctx.lineWidth=.7;
     P.lakes.forEach(function(l){ctx.beginPath();poly(l.r,true);ctx.fill();ctx.stroke();});
     ctx.restore();}
 
-    /* Lake name labels, added 2026-09-12, gate reworked 2026-09-13 - halo-background
-       text technique the Towns layer already uses. Label point is the bounding-box
-       centre of the lake's own ring in projected space. Gated on the on-screen scale
-       bar's own "<=25 km" reading (currentScaleKm(), defined below near drawScale())
-       so every named lake, Lake Athabasca included, waits for the same zoom - no more
-       "always show if big" exception, which used to leave Lake Athabasca's label on
-       at every zoom level. */
+    /* Lake name labels, added 2026-09-12 - same halo-background text technique the
+       Towns layer already uses (small font, translucent background rectangle so the
+       text stays legible over the water fill), tuned to stay out of the way at low
+       zoom: only the handful of biggest named lakes show at reset view, the rest
+       reveal themselves once you zoom in a bit past the 'big' threshold Towns already
+       uses. Label point is the bounding-box centre of the lake's own ring in
+       projected space - simple, and good enough for this basin's lake shapes, which
+       run long and simple rather than deeply concave (a true polygon centroid would
+       be more correct for a horseshoe-shaped lake, not worth the extra math here).
+       Unnamed candidates (about 3 in 4 of this layer's polygons) never get a label -
+       there's nothing real to print, not a placeholder. */
     if(ON.lake&&P.lakes.length){
-      var lakeBig=currentScaleKm()<=25;
+      var lakeBig=currentScaleKm()<=25; /* 2026-09-13: gated on the scale bar's own 25 km reading, not a home.s multiplier - see currentScaleKm() above */
       ctx.save();ctx.font='10.5px "IBM Plex Sans",system-ui,sans-serif';
       ctx.textAlign='center';ctx.textBaseline='middle';
       P.lakes.forEach(function(l){
         var nm=(l.n||'').trim();if(!nm)return;
-        if(!lakeBig)return;
+        if(!lakeBig)return; /* 2026-09-13: no more size exception - every named lake, Lake Athabasca included, now waits for the same zoom gate rather than always showing */
         var xs=l.r.map(function(p){return p[0];}),ys=l.r.map(function(p){return p[1];});
         var cxp=[(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2,
                  (Math.min.apply(null,ys)+Math.max.apply(null,ys))/2];
@@ -1076,8 +1216,9 @@ function draw(){
         ctx.fillStyle='rgba(179,217,237,.95)';ctx.fillText(nm,x,y);});
       ctx.restore();}
 
+
   if(ON.basin&&P.basin.length){ctx.save();
-    ctx.fillStyle=tok('--basinfill','rgba(217,119,87,.14)');
+    ctx.fillStyle=tok('--basinfill','rgba(217,119,87,.112)');
     ctx.strokeStyle=tok('--basinline','rgba(184,92,62,.85)');ctx.lineWidth=1.3;
     P.basin.forEach(function(r){ctx.beginPath();poly(r,true);ctx.fill();ctx.stroke();});
     ctx.restore();}
@@ -1158,7 +1299,7 @@ function draw(){
   if(ON.tenure&&P.tenure.length){ctx.save();
     /* Isolate-holder mode (F.holder set) gets its own bolder treatment - the
        default SLOT[0] blue at the normal .30 fill / 1.6-3.4px stroke read too
-       close to the lakes layer's blue fill (flagged 2026-09-08). Bumped
+       close to the lakes layer's blue fill (reported 2026-09-08). Bumped
        to a thicker stroke (2.2-4.8px) and a 30%-more-opaque fill (.30 -> .39)
        whenever a holder is actually isolated. */
     var isoMode=!!F.holder;
@@ -1167,11 +1308,33 @@ function draw(){
     P.tenure.forEach(function(t){ if(!tenVis(t)||!visb(t.b))return;
       var c=activeColor(t.o); (byCol[c]=byCol[c]||[]).push(t); });
     Object.keys(byCol).forEach(function(col){
+      var dim=(col===OTHER||col===FAVDIM);
       ctx.beginPath(); byCol[col].forEach(function(t){ poly(t.r,true); });
-      ctx.fillStyle=col; ctx.globalAlpha=col===OTHER?.16:(isoMode?.39:.30); ctx.fill();
-      ctx.globalAlpha=col===OTHER?.5:.95; ctx.strokeStyle=col; ctx.stroke();
+      ctx.fillStyle=col; ctx.globalAlpha=dim?.16:(isoMode?.39:.30); ctx.fill();
+      ctx.globalAlpha=dim?.5:.95; ctx.strokeStyle=col; ctx.stroke();
     });
-    ctx.restore();}
+    ctx.restore();
+    /* JV hatch overlay, added 2026-09-11 - flags a joint-venture parcel (2+
+       owners in OWNERS) with a diagonal hatch on top of its normal fill
+       colour (the largest partner's, via activeColor/primaryOwner above),
+       rather than trying to paint every partner's share - see
+       map-pipeline.md for why a per-partner colour split doesn't scale past
+       two parties without looking busy. One combined clip region (union of
+       every visible JV polygon this frame) plus one set of 45-degree lines
+       spanning the canvas is cheaper than clipping+hatching each polygon
+       separately, and there are typically only a few dozen JV parcels on
+       screen at once. Tooltip (showTip) carries the real per-partner
+       percentages for whoever wants the exact split. */
+    var jvTen=P.tenure.filter(function(t){return tenVis(t)&&visb(t.b)&&isJVOwners(t.o)&&
+      (!FAVN||F.fav[primaryOwner(t.o)]||FAV_UP[primaryOwner(t.o).toUpperCase()]);});
+    if(jvTen.length){ctx.save();
+      ctx.beginPath(); jvTen.forEach(function(t){ poly(t.r,true); }); ctx.clip();
+      ctx.strokeStyle='rgba(255,255,255,.55)';
+      ctx.lineWidth=Math.max(.6,Math.min(1.3,view.s*.009));
+      ctx.beginPath();
+      for(var hx=-H;hx<W+H;hx+=7){ ctx.moveTo(hx,0); ctx.lineTo(hx+H,H); }
+      ctx.stroke();
+      ctx.restore();}}
 
   if(ON.foot&&P.foots.length){ctx.save();ctx.lineWidth=1.3;
     ctx.strokeStyle='rgba(255,0,0,1)';ctx.fillStyle='rgba(255,0,0,.28)';
@@ -1181,7 +1344,10 @@ function draw(){
   if(ON.restricted&&P.restricted.length){ctx.save();
     P.restricted.forEach(function(r){ if(!visb(r.b))return;
       ctx.beginPath();poly(r.r,true);
-      ctx.fillStyle='rgba(255,255,255,.85)';ctx.fill();
+      /* Fill made 25% more translucent 2026-09-15 (.85 -> .64 alpha, relative
+         reduction, matching the Athabasca Basin polygon precedent). Stroke
+         unchanged - only the fill read as too solid. */
+      ctx.fillStyle='rgba(255,255,255,.64)';ctx.fill();
       ctx.strokeStyle='rgba(255,255,255,.85)';
       ctx.lineWidth=Math.max(1,Math.min(2.4,view.s*.016));ctx.stroke();});
     ctx.restore();}
@@ -1191,13 +1357,21 @@ function draw(){
     ctx.setLineDash([Math.max(4,view.s*.05),Math.max(3,view.s*.035)]);ctx.beginPath();
     P.hw.forEach(function(h){poly(h.r,false);});ctx.stroke();ctx.setLineDash([]);ctx.restore();}
 
-    /* Highway route labels, added 2026-09-12, gate reworked 2026-09-13 - same
-       halo-background technique as lake/town labels. Highways are stored as many
-       short segments per route, so this groups segments by name once per frame and
-       draws exactly one label per named route, at whichever segment sits closest to
-       the visible map's centre (keeps the label roughly centred as you pan). Same
-       25 km scale-bar gate as lake names. */
-    if(ON.hw&&P.hw.length&&currentScaleKm()<=25){
+    /* Highway route labels, added 2026-09-12 - same halo-background text technique
+       as the lake/town labels above. Highways are stored as many short simplified
+       segments per route (not one line per highway), so labelling every segment
+       would repeat the same name many times down one road; instead this groups
+       segments by name once per frame (cheap at this layer's size, ~100-150
+       segments) and draws exactly one label per named route per frame, at whichever
+       of that route's segments currently sits closest to the centre of the visible
+       map - so the label stays roughly centred in view as you pan, rather than
+       sitting fixed at one spot on the route regardless of where you've scrolled to.
+       Zoom-gated a bit later than lake names (1.5x vs 1.25x) since a thin line
+       benefits less from an early label than a filled lake shape does. Requires
+       gis/basin_layers.py's RTNUMBER1/RTENAME1EN fix (2026-09-12) to actually have
+       named segments to draw - shows nothing until that fix's data lands, same as
+       any other layer before its first real data. */
+    if(ON.hw&&P.hw.length&&currentScaleKm()<=25){ /* 2026-09-13: same 25 km scale-bar gate as lake names, was a home.s multiplier before */
       var hwGroups={};
       P.hw.forEach(function(h){var nm=(h.n||'').trim();if(!nm)return;
         (hwGroups[nm]=hwGroups[nm]||[]).push(h);});
@@ -1219,9 +1393,10 @@ function draw(){
         ctx.fillText(nm,best[0],best[1]);});
       ctx.restore();}
 
+
   if(ON.lapse){var lapseTen=P.tenure.filter(function(t){return t.lapseSoon&&!t.isNew;});
     if(lapseTen.length){ctx.save();
-      lapseTen.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+      lapseTen.forEach(function(t){ if(F.holder&&!holderSel(primaryOwner(t.o)))return;
         if(!visb(t.b))return;
         /* Filled the same way as New Claims (solid holder-colour fill, dim for
            named individuals) so a claim about to lapse reads as whose ground
@@ -1237,27 +1412,28 @@ function draw(){
            ground is about to lapse. HCOL is the mapping that actually knows
            about Orano, GEM OIL, Skyharbour etc. See "Northern Miner colour
            scheme" in open-items.md. 2026-09-08. */
-        var col=HCOL[shortHolder(t.o)]||OTHER;
+        var col=HCOL[primaryOwner(t.o)]||OTHER;
         ctx.beginPath();poly(t.r,true);
         ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
         ctx.strokeStyle='rgba(255,20,147,.92)';
-        /* Outline width reduced 30% from New Claims' equivalent stroke, 2026-09-08. */
-        ctx.lineWidth=Math.max(1.71,Math.min(3.42,view.s*.019845));ctx.stroke(); /* 2026-09-13: 10% thinner, was 1.9/3.8/.02205 */});
+        /* Outline width matched to Lapsed Claims' stroke, 2026-09-15 (was a thicker
+           1.9-3.8px "reduced 30% from New Claims" stroke). */
+        ctx.lineWidth=Math.max(.96,Math.min(2.16,view.s*.0132));ctx.stroke();});
       ctx.restore();}}
 
-  /* Lapsing 8-14 Days - added 2026-09-13, was missing entirely from Explorer even
-     though the data (t.lapseSoon2) and the toggle/legend row have existed since
-     2026-09-11 on Basin Watch. Same fill/outline treatment as the 7-day tier, lighter
-     pink. */
+  /* Lapsing 8-14 Days - added 2026-09-11, second/wider tier alongside the 7-day layer
+     above. Same fill/outline treatment, lighter pink to read as "same family, one tier
+     further out" rather than an unrelated colour. */
   if(ON.lapse2){var lapse2Ten=P.tenure.filter(function(t){return t.lapseSoon2&&!t.isNew;});
     if(lapse2Ten.length){ctx.save();
-      lapse2Ten.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+      lapse2Ten.forEach(function(t){ if(F.holder&&!holderSel(primaryOwner(t.o)))return;
         if(!visb(t.b))return;
-        var col=HCOL[shortHolder(t.o)]||OTHER;
+        var col=HCOL[primaryOwner(t.o)]||OTHER;
         ctx.beginPath();poly(t.r,true);
         ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.62; ctx.fill(); ctx.globalAlpha=1;
         ctx.strokeStyle='rgba(255,133,194,.92)';
-        ctx.lineWidth=Math.max(1.71,Math.min(3.42,view.s*.019845));ctx.stroke(); /* 2026-09-13: 10% thinner, was 1.9/3.8/.02205 */});
+        /* Outline width matched to Lapsed Claims' stroke, 2026-09-15. */
+        ctx.lineWidth=Math.max(.96,Math.min(2.16,view.s*.0132));ctx.stroke();});
       ctx.restore();}}
 
   if(ON.tenure){ctx.save();
@@ -1272,12 +1448,12 @@ function draw(){
        otherwise) - the new/not-new distinction still comes through the dash
        pattern and stroke width, unchanged. */
     P.ab.forEach(function(A){ if(!visb(A.b))return;
-      if(F.holder){var abh=shortHolder(A.o); if(abh!==F.holder&&abh.toUpperCase()!==F.holder.toUpperCase())return;}
-      var col=activeColor(A.o);
+      if(F.holder&&!holderSel(shortHolder(A.o)))return;
+      var col=activeColor(A.o), abDim=(col===OTHER||col===FAVDIM);
       ctx.beginPath();poly(A.r,true);
-      ctx.fillStyle=col; ctx.globalAlpha=(col===OTHER)?.16:.30; ctx.fill(); ctx.globalAlpha=1;
+      ctx.fillStyle=col; ctx.globalAlpha=abDim?.16:.30; ctx.fill(); ctx.globalAlpha=1;
       ctx.setLineDash(A.isNew?[]:[5,3]);
-      ctx.strokeStyle=col; ctx.globalAlpha=(col===OTHER)?.5:.95;
+      ctx.strokeStyle=col; ctx.globalAlpha=abDim?.5:.95;
       ctx.lineWidth=A.isNew?Math.max(1.8,Math.min(3.6,view.s*.022)):Math.max(.9,Math.min(2,view.s*.013));
       ctx.stroke(); ctx.globalAlpha=1;});
     ctx.setLineDash([]);ctx.restore();}
@@ -1301,7 +1477,7 @@ function draw(){
   if(ON.claim){
     var newTen=P.tenure.filter(function(t){return t.isNew;});
     if(newTen.length){ctx.save();
-      newTen.forEach(function(t){ if(F.holder&&shortHolder(t.o)!==F.holder)return;
+      newTen.forEach(function(t){ if(F.holder&&!holderSel(primaryOwner(t.o)))return;
         if(!visb(t.b))return;
         var col=newClaimColor(t.o,t.corp);
         /* SOLID fill in the company colour first - a thin dashed outline alone
@@ -1321,7 +1497,7 @@ function draw(){
       ctx.restore();}
     var orphanClaims=P.claims.filter(function(c){return c.orphan;});
     if(orphanClaims.length){ctx.save();
-      orphanClaims.forEach(function(c){ if(F.holder&&shortHolder(c.o)!==F.holder)return;
+      orphanClaims.forEach(function(c){ if(F.holder&&!holderSel(primaryOwner(c.o)))return;
         var x=sx(c.p),y=sy(c.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
         var col=newClaimColor(c.o,c.corp);
         ctx.beginPath();ctx.arc(x,y,4.6,0,6.2832);
@@ -1349,10 +1525,14 @@ function draw(){
     ctx.restore();}
 
   if(ON.smdi&&P.smdi.length){ctx.save();
+    /* Recoloured sky-blue + glow 2026-09-15 (gold read too close to the orange/yellow
+       news-release pair). Matches .g-assay in the text highlighting - both mean the
+       same thing, a quoted/historical figure, not a fresh result. */
+    ctx.shadowColor='rgba(56,189,248,.65)';ctx.shadowBlur=5;
     P.smdi.forEach(function(d){ if(F.smdippm&&(d.ppm==null||d.ppm<F.smdippm))return;
       var x=sx(d.p),y=sy(d.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
       ctx.beginPath();ctx.arc(x,y,3.4,0,6.2832);
-      ctx.fillStyle=(d.ppm!=null)?'rgba(249,115,22,.9)':'rgba(249,115,22,.4)';ctx.fill();
+      ctx.fillStyle=(d.ppm!=null)?'rgba(56,189,248,.9)':'rgba(56,189,248,.4)';ctx.fill();
       ctx.strokeStyle=surf;ctx.lineWidth=1.1;ctx.stroke();});
     ctx.restore();}
 
@@ -1366,21 +1546,17 @@ function draw(){
     P.mines.forEach(function(m){var x=sx(m.p),y=sy(m.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
       var sMin=3.6,s=Math.min(6.0,sMin*mineZoom),sb=s*0.72;
       ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x+s,y+sb);ctx.lineTo(x-s,y+sb);ctx.closePath();
-      ctx.fillStyle='#000000';ctx.fill(); /* 2026-09-13: black fill, no outline - explicit request */
-      });
+      ctx.fillStyle='#000000';ctx.fill();
+      ctx.strokeStyle=surf;ctx.lineWidth=1.3;ctx.stroke();});
     ctx.restore();}
 
   if(ON.place&&P.places.length){ctx.save();
     ctx.font='10.5px "IBM Plex Sans",system-ui,sans-serif';ctx.textBaseline='middle';
-    /* 2026-09-13: label gate switched to the same <=25km scale-bar reading lake/highway
-       names use (was a home.s zoom multiplier, plus an always-on exception for the 4
-       manually-added towns) - explicit request, "same as the lakes." Icon (dot) is
-       unaffected by this gate and still shows at every zoom, just 10% smaller. */
-    var placeLabelsOn=currentScaleKm()<=25;
+    var big=view.s>home.s*1.25;
     P.places.forEach(function(s){var x=sx(s.p),y=sy(s.p);if(x<-40||x>W+40||y<-20||y>H+20)return;
-      ctx.beginPath();ctx.arc(x,y,2.7,0,6.2832);ctx.fillStyle=surf;ctx.fill(); /* 2026-09-13: 10% smaller, was 3 */
+      ctx.beginPath();ctx.arc(x,y,3,0,6.2832);ctx.fillStyle=surf;ctx.fill();
       ctx.strokeStyle=tok('--ink','#141413');ctx.lineWidth=1.5;ctx.stroke();
-      if(placeLabelsOn){
+      if(big||s.k==='Town'||s.k==='City'){
         ctx.fillStyle=surf;ctx.globalAlpha=.75;
         var w=ctx.measureText(s.n).width;ctx.fillRect(x+5,y-6,w+4,12);ctx.globalAlpha=1;
         ctx.fillStyle=tok('--ink','#141413');ctx.fillText(s.n,x+7,y);}});
@@ -1390,7 +1566,7 @@ function draw(){
      ON.newsx everything else. The dashed ring is the position's stated uncertainty in
      real kilometres, so it grows as you zoom in - a claim-block centroid stops looking
      like a drill collar the moment the scale makes the difference matter. */
-  if((ON.news||ON.newsx||ON.newsd)&&P.news.length){ctx.save();
+  if((ON.news||ON.newsd||ON.newso||ON.newsx)&&P.news.length){ctx.save();
     var pa9=PROJ(-106,58),pb9=PROJ(-105,58);
     var pxkm=Math.abs(sx(pb9)-sx(pa9))/km([-106,58],[-105,58]);
     /* Other News stars are painted FIRST so the Grade stars always land on top of them -
@@ -1400,20 +1576,28 @@ function draw(){
        marker-width at basin zoom), so this is a real collision, not a hypothetical. Keep
        the two passes in this order; pick() below walks them the same way so the marker you
        click is the one you can see. */
-    [[NEWSX,ON.newsx],[NEWSD,ON.newsd],[NEWSG,ON.news]].forEach(function(pass){
+    [[NEWSX,ON.newsx],[NEWSO,ON.newso],[NEWSD,ON.newsd],[NEWSG,ON.news]].forEach(function(pass){
       if(!pass[1])return;
       pass[0].forEach(function(w){
         var x=sx(w.p),y=sy(w.p);if(x<-60||x>W+60||y<-60||y>H+60)return;
-        var al=favMatchesCo(w.co)?1:.22;
+        var al=1;/* 2026-09-11: favourites no longer dim news waypoints - matches isolate-mode behavior (Top 10 Holder click never dimmed news either). favMatchesCo() is now unused here on purpose. */
         if(w.unc>0){var rr=Math.max(7,w.unc*pxkm);
           ctx.globalAlpha=al*.5;ctx.strokeStyle=w.col;ctx.lineWidth=1.1;ctx.setLineDash([3,3]);
           ctx.beginPath();ctx.arc(x,y,rr,0,6.2832);ctx.stroke();ctx.setLineDash([]);}
-        ctx.globalAlpha=al;ctx.fillStyle=w.col;ctx.strokeStyle=surf;ctx.lineWidth=1.43; /* 2026-09-13: scaled with the 10% larger star */
+        ctx.globalAlpha=al;ctx.fillStyle=w.col;ctx.strokeStyle=surf;ctx.lineWidth=1.3;
         newsGlyph(x,y,w.ty);ctx.fill();ctx.stroke();
+        /* Rank badge: the number of the matching entry in the brief's numbered
+           news list, in a small pill pinned to the star's upper right - added
+           2026-09-09. Only waypoints carrying a `num` in the bundle get one;
+           items not in the numbered list (context notes, out-of-window items)
+           stay unlabelled. The number is NOT drawn inside the star: at the
+           star's 7.14px radius a digit is illegible at real size - tested, don't
+           move it back in. Pill fill is the star's own colour so the badge reads
+           as part of the same marker. */
         if(w.num!=null){var lbl=String(w.num);
-          ctx.font='700 9.24px "IBM Plex Mono",ui-monospace,monospace'; /* 2026-09-13: 10% larger, was 8.4px */
+          ctx.font='700 8.4px "IBM Plex Mono",ui-monospace,monospace';
           ctx.textAlign='center';ctx.textBaseline='middle';
-          var bx=x+8.36,by=y-8.36,hw=Math.max(6.05,ctx.measureText(lbl).width/2+3.3),hh=6.05; /* 2026-09-13: 10% larger throughout, was x+7.6/y-7.6/5.5/5.5/+3 */
+          var bx=x+7.6,by=y-7.6,hw=Math.max(5.5,ctx.measureText(lbl).width/2+3),hh=5.5;
           ctx.beginPath();
           if(ctx.roundRect){ctx.roundRect(bx-hw,by-hh,hw*2,hh*2,hh);}
           else{ctx.arc(bx,by,hh,0,6.2832);}
@@ -1434,9 +1618,10 @@ function draw(){
   drawScale();
 }
 /* Shared with drawScale() below - added 2026-09-13 so lake/highway name labels can
-   gate on the same rounded "25 km" reading the on-screen scale bar shows. Same
-   rounding rule as the scale bar itself: the largest of [10,25,50,100,200,500] whose
-   bar would still render under 150px wide at the current zoom. */
+   gate on the same rounded "25 km" reading the on-screen scale bar shows, instead of
+   a view.s/home.s multiplier that didn't correspond to any number the viewer can see.
+   Same rounding rule as the scale bar itself: the largest of [10,25,50,100,200,500]
+   whose bar would still render under 150px wide at the current zoom. */
 function currentScaleKm(){
   var pa=PROJ(-106,58),pb=PROJ(-105,58);
   var pxDeg=Math.abs(sx(pb)-sx(pa)),kmDeg=km([-106,58],[-105,58]);
@@ -1458,7 +1643,7 @@ function inRing(r,x,y){var c=false;
     if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi))c=!c;}
   return c;}
 function pick(mx,my){
-  /* Hit radius widened 13px->20px, 2026-09-09 (fourth pass): a diagnostic showed
+  /* Hit radius widened 13px->20px, 2026-09-09 (fourth pass): field diagnostic showed
      precise, zero-movement clicks aimed at Grade Release/Other News/U Deposit markers
      landing on the tenure polygon underneath instead ("hit type=ten") or missing
      entirely ("pick()=NO HIT") - not a click-vs-drag bug at all, a hit-test radius too
@@ -1473,19 +1658,20 @@ function pick(mx,my){
      star and an Other News star coincide the hover reports the one drawn on top. */
   function ptTop(p,mk){var dx=sx(p)-mx,dy=sy(p)-my,d=dx*dx+dy*dy;if(d<=bd){bd=d;best=mk();}}
   if(ON.newsx)NEWSX.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
+  if(ON.newso)NEWSO.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
   if(ON.newsd)NEWSD.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
   if(ON.news)NEWSG.forEach(function(w){ptTop(w.p,function(){return{t:'news',o:w};});});
   if(ON.mine)P.mines.forEach(function(m){pt(m.p,function(){return{t:'mine',o:m};});});
   if(ON.dep)P.deps.forEach(function(d){if(!F.status||d.s===F.status)pt(d.p,function(){return{t:'dep',o:d};});});
   if(ON.smdi)P.smdi.forEach(function(d){if(!F.smdippm||(d.ppm!=null&&d.ppm>=F.smdippm))pt(d.p,function(){return{t:'smdi',o:d};});});
-  if(ON.claim)P.claims.forEach(function(c){if(c.orphan&&(!F.holder||shortHolder(c.o)===F.holder))pt(c.p,function(){return{t:'claim',o:c};});});
+  if(ON.claim)P.claims.forEach(function(c){if(c.orphan&&(!F.holder||holderSel(primaryOwner(c.o))))pt(c.p,function(){return{t:'claim',o:c};});});
   if(best)return best;
   if(ON.tenure){for(var i=0;i<P.tenure.length;i++){var t=P.tenure[i];
     if(!tenVis(t)||!visb(t.b))continue;
     if(inRing(t.r,mx,my))return{t:'ten',o:t};}}
   if(ON.tenure){for(var ja=0;ja<P.ab.length;ja++){var A=P.ab[ja];
     if(!visb(A.b))continue;
-    if(F.holder){var abh2=shortHolder(A.o); if(abh2!==F.holder&&abh2.toUpperCase()!==F.holder.toUpperCase())continue;}
+    if(F.holder&&!holderSel(shortHolder(A.o)))continue;
     if(inRing(A.r,mx,my))return{t:'ab',o:A};}}
   
   if(ON.lapall){for(var jla=0;jla<P.lapreg.length;jla++){var LA=P.lapreg[jla];
@@ -1523,12 +1709,14 @@ function showTip(h,mx,my){
     (o.ppm!=null&&o.assay===false?'<div class="hint">radiometric/gamma-derived figure, not a chemical assay</div>':'')+
     (o.ppm!=null?'<div class="hint">self-extracted from narrative text - approximate, not independently verified</div>':'')+
     '<div class="hint">click for the provincial SMDI record</div>';
-  else if(h.t==='ten')s='<b>'+esc(o.d)+'</b>'+row('Holder',shortHolder(o.o))+
+  else if(h.t==='ten')s='<b>'+esc(o.d)+'</b>'+
+    (isJVOwners(o.o)?row('Joint venture',parseOwners(o.o).sort(function(a,b){return b.pct-a.pct;}).map(function(w){return esc(w.name)+' '+w.pct.toFixed(1)+'%';}).join(' / ')):row('Holder',shortHolder(o.o)))+
     (o.e?row('Registered',o.e):'')+(o.st?row('Status',o.st):'')+
     (o.x?row('Good standing until',o.x):'')+
-    (o.lapseSoon&&o.dep!=null?row('$ to hold','$'+Math.round(o.dep).toLocaleString()):'')+
+    ((o.lapseSoon||o.lapseSoon2)&&o.dep!=null?row('$ to hold','$'+Math.round(o.dep).toLocaleString()):'')+
     (o.isNew?'<div class="hint">registered this week</div>':
-      o.lapseSoon?'<div class="hint">lapses within 7 days - opens back up to staking around '+esc(o.x)+'</div>':'');
+      o.lapseSoon?'<div class="hint">lapses within 7 days - opens back up to staking around '+esc(o.x)+'</div>':
+      o.lapseSoon2?'<div class="hint">lapses within 8-14 days - opens back up to staking around '+esc(o.x)+'</div>':'');
   else if(h.t==='claim')s='<b>'+esc(o.d)+'</b>'+row('Holder',shortHolder(o.o))+
     (o.e?row('Registered',o.e):'')+'<div class="hint">registered this week</div>';
   else if(h.t==='ab')s='<b>'+esc(o.d)+'</b>'+row('Holder of record',shortHolder(o.o))+
@@ -1562,22 +1750,16 @@ function showTip(h,mx,my){
   tip.style.left=Math.max(4,L)+'px';tip.style.top=Math.max(4,T)+'px';}
 
 /* ---------- events ---------- */
-var drag=null,MS={on:false,pts:[],hover:null},mapActive=false;
-/* Click-to-interact gate, added 2026-09-12/13: the map used to hijack every wheel
-   scroll that merely passed over it. Now it stays passive - wheel scrolls the PAGE,
-   not the map - until the visitor clicks it once; a click outside the whole map card
-   (canvas AND the legend columns on either side, widened 2026-09-13) puts it back to
-   sleep. Panning/hover/click work immediately either way - only wheel checks this. */
-function setMapActive(v){
-  mapActive=v;
-  var hintEl=document.getElementById('mapActivateHint');
-  if(hintEl)hintEl.hidden=v;
-}
-var mapCard=document.querySelector('.mapcard')||stage;
-document.addEventListener('pointerdown',function(e){
-  if(mapCard.contains(e.target)){ if(!mapActive)setMapActive(true); }
-  else if(mapActive){ setMapActive(false); }
-},true);
+var drag=null,MS={on:false,pts:[],hover:null};
+/* Click-to-interact gate (added 2026-09-12 for Basin Watch, where the map sits
+   inside a long scrolling news page and used to hijack every wheel scroll that
+   merely passed over it) - removed from Basin Explorer 2026-09-15. This is the
+   standalone map page: the map IS the content the visitor came for, so wheel
+   should zoom immediately, no click-first affordance needed. mapActive stays
+   permanently true; setMapActive/mapActive are kept only so the wheel handler
+   below doesn't need touching. */
+var mapActive=true;
+function setMapActive(v){ mapActive=v; }
 function evp(e){var r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
 function invert(mx,my){var lon=-106,lat=58;
   for(var i=0;i<40;i++){var p=PROJ(lon,lat),px=sx(p),py=sy(p);
@@ -1620,7 +1802,7 @@ function endDrag(){if(drag){drag=null;cv.classList.remove('drag');}}
 /* ROOT CAUSE FOUND 2026-09-09 (sixth pass): a raw-event probe (since removed) caught
    it - pointerup was throwing "A parameter or an operation is not supported by the
    underlying object". That's a NotSupportedError DOMException thrown BY
-   window.open() ITSELF, synchronously, on this production setup. This page runs inside a
+   window.open() ITSELF, synchronously, on the production setup. This page runs inside a
    sandboxed iframe (the Artifacts viewer on claude.ai) - script-invoked
    window.open() from inside that sandbox throws in Firefox-family browsers
    (Mullvad Browser is Tor-Browser/Firefox-based) instead of just returning null
@@ -1685,7 +1867,7 @@ var heatBar=document.getElementById('heatbar');
    the same ON[l.k] the checkbox drives, and switching a layer off also resets its
    filter value to 0 (no filtering) so a hidden, disabled slider can never keep
    silently filtering a layer nobody can see is filtered. */
-/* Sliders switched from linear to log-scale, 2026-09-09 ("SMDI grade slider doesn't
+/* Sliders switched from linear to log-scale, 2026-09-09 (SMDI grade slider "doesn't
    work"; Boulder Heat / Lake & Soil Heat sliders "much too aggressive... maybe log scaling
    is more appropriate"). All three datasets are extremely right-skewed - the vast majority
    of records/grid-cells sit under 10% of the layer's max value, so a *linear* 0..max slider
@@ -1717,7 +1899,11 @@ var SLIDER_SPECS={
 function mkLyrToggle(l,container){var n=l.get(),checked=!!(n&&ON[l.k]);
   var spec=SLIDER_SPECS[l.k]?SLIDER_SPECS[l.k]():null;
   var lab=document.createElement('label');lab.className='lyr'+(checked?' on':'');
-  lab.innerHTML='<input type="checkbox"'+(checked?' checked':'')+'><span class="kx" style="background:'+l.color+'"></span>'+
+  /* Other News and Milestone split into their own single-colour toggles 2026-09-15 -
+     see news-waypoints.md - superseding the brief two-circle combined icon tried earlier
+     the same day. */
+  var swatchHtml='<span class="kx" style="background:'+l.color+'"></span>';
+  lab.innerHTML='<input type="checkbox"'+(checked?' checked':'')+'>'+swatchHtml+
     l.label+' <span class="ct">'+(n?n.toLocaleString():'0')+'</span>';
   var inp=lab.querySelector('input');
   if(!n){lab.style.opacity=.4;inp.disabled=true;ON[l.k]=false;lab.classList.remove('on');}
@@ -1748,11 +1934,35 @@ function mkLyrToggle(l,container){var n=l.get(),checked=!!(n&&ON[l.k]);
       if(!inp.checked){spec.onInput(0);slInput.value=0;slVal.textContent=spec.fmt(0);}}
     draw();});
   container.appendChild(wrap);}
-LAYERS.forEach(function(l){mkLyrToggle(l,HEATKEYS.indexOf(l.k)>=0?heatBar:bar);});
+/* Layer-bar groups, added 2026-09-15 - Land status/News releases/Geology, in that
+   order; heat-style layers (smdi/heat/geochem) stay routed to their own box below via
+   HEATKEYS, unchanged. */
+var LYRGROUPS=[
+  {label:'Land status',   keys:['claim','lapse','lapse2','tenure','lapall','restricted']},
+  {label:'News Releases', keys:['news','newsd','newso','newsx']}
+];
+var LYRBYKEY={}; LAYERS.forEach(function(l){LYRBYKEY[l.k]=l;});
+LYRGROUPS.forEach(function(g,gi){
+  var hd=document.createElement('div');hd.className='lyrgrouphd'+(gi>0?' rule':'');
+  hd.textContent=g.label;bar.appendChild(hd);
+  g.keys.forEach(function(k){var l=LYRBYKEY[k];if(l)mkLyrToggle(l,bar);});
+});
+/* Geology swapped down into the separated box (News Releases moved up into the main
+   bar above, in Geology's old spot), added 2026-09-15. */
+var geolHd=document.createElement('div');geolHd.className='lyrgrouphd';
+geolHd.textContent='Geology';heatBar.appendChild(geolHd);
+['dep','foot','mine','cond'].forEach(function(k){var l=LYRBYKEY[k];if(l)mkLyrToggle(l,heatBar);});
+/* Historical Indicators (SMDI Grade / Boulder Heat / Lake & Soil Heat - density/heat
+   surfaces of historical grade and geochemical signal, not current mapped features)
+   moved to the right-hand reference panel 2026-09-15, in the "News Release" legend's
+   old slot - these are occasional reference/filter tools, same category as Favourites
+   and Top 10 holders, not something scanned constantly like the left-hand toggles. */
+var histBar=document.getElementById('histbar');
+if(histBar)LAYERS.forEach(function(l){if(HEATKEYS.indexOf(l.k)>=0)mkLyrToggle(l,histBar);});
 
 /* Filters ctrlsec (an "Isolate holder" <select> duplicating what Favourites and
-   the This Week's Stakers key already do) was removed 2026-09-09 - explicit call,
-   it wasn't doing anything the other controls didn't. isolateSel stays defined
+   the This Week's Stakers key already do) was removed 2026-09-09 - it wasn't
+   doing anything the other controls didn't. isolateSel stays defined
    as a permanent no-op (null) so the two guarded `if(isolateSel)` call sites
    below don't need touching. */
 var isolateSel=null;
@@ -1783,11 +1993,12 @@ function renderNewClaimKey(){ if(!nlg||!newTopHolders.length)return;
     nlg.innerHTML=newTopHolders.slice(0,8).map(function(h,i){
       var active=F.holder&&h===F.holder;
       return '<span class="lg" data-h="'+esc(h).replace(/"/g,'&quot;')+'" style="cursor:pointer'+
-        (active?';outline:1px solid #fff':'')+'" title="Click to isolate this holder on the map">'+newSw(HCOL[h]||NEWHCOL[h]||OTHER)+esc(shortHolder(h))+
+        (active?';outline:1px solid #fff':'')+'" title="Click to isolate this holder on the map">'+newSw(HCOL[h]||NEWHCOL[h]||OTHER)+'<span class="nm" title="'+esc(shortHolder(h)).replace(/"/g,'&quot;')+'">'+esc(displayHolder(h))+'</span>'+
         ' <span class="ct">'+newCount[h]+' new claim'+(newCount[h]===1?'':'s')+'</span></span>';}).join('')+
       (newTopHolders.length>8?'<span class="lg">'+newSw(OTHER)+'other corporate stakers</span>':'')+
-      '<span class="lg">'+newSw(OTHER)+'named individuals (always grey)</span>'+
-      '<span class="lgnote">Click a row to isolate that staker on the map.</span>';
+      '<span class="lg" data-h="'+IND_SENTINEL+'" style="cursor:pointer'+
+        (F.holder===IND_SENTINEL?';outline:1px solid #fff':'')+'" title="Click to isolate named individuals on the map">'+
+        newSw(OTHER)+'named individuals (always grey)</span>';
     Array.prototype.forEach.call(nlg.querySelectorAll('.lg[data-h]'),function(el){
       el.addEventListener('click',function(){
         var h=el.getAttribute('data-h');
@@ -1809,6 +2020,7 @@ renderNewClaimKey();
    this is the practical way to actually SEE any one of the top 10 on the map
    itself, one at a time (or up to 3 via Spotlight above). ---------- */
 var thlg=document.getElementById('topholders');
+function fmtHa(n){ n=n||0; return (n>=1000?Math.round(n).toLocaleString():n.toFixed(n>=100?0:1))+' ha'; }
 function renderTopHolders(){ if(!thlg||!topCorpHolders.length)return;
   var top10=topCorpHolders.slice(0,10);
   thlg.innerHTML=top10.map(function(h,i){
@@ -1817,8 +2029,8 @@ function renderTopHolders(){ if(!thlg||!topCorpHolders.length)return;
       var sw='<span class="sw" style="background:'+col+'"></span>';
       return '<span class="lg" data-h="'+esc(h).replace(/"/g,'&quot;')+'" style="cursor:pointer'+
         (active?';outline:1px solid #fff':'')+'" title="Click to isolate this holder on the map">'+sw+
-        esc(shortHolder(h))+' <span class="ct">'+tenureCount[h]+'</span></span>';}).join('')+
-    '<span class="lgnote">Ranked over all active claims. Click a row to isolate it.</span>';
+        '<span class="nm" title="'+esc(shortHolder(h)).replace(/"/g,'&quot;')+'">'+esc(displayHolder(h))+'</span> <span class="ct">'+fmtHa(holderHa[h])+'</span></span>';}).join('')+
+    '<span class="lgnote">Ranked by hectares held, joint ventures split by their stated ownership %. Click a row to isolate it.</span>';
   Array.prototype.forEach.call(thlg.querySelectorAll('.lg'),function(el){
     el.addEventListener('click',function(){
       var h=el.getAttribute('data-h');
@@ -1853,6 +2065,7 @@ function renderFav(){
   rows.sort(function(a,b){
     var fa=F.fav[a]?0:1, fb=F.fav[b]?0:1;
     if(fa!==fb) return fa-fb;
+    if(!q){ var ia=isCorp(a)?0:1, ib=isCorp(b)?0:1; if(ia!==ib) return ia-ib; }
     return shortHolder(a).localeCompare(shortHolder(b)); });
   if(!rows.length){
     favListEl.innerHTML='<div class="favrow">no company matches that search</div>';
@@ -1884,6 +2097,36 @@ renderFav();
 var empty=document.getElementById('mapempty');
 if(!hasData&&empty){empty.hidden=false;
   empty.textContent='Map layers not loaded yet. Run basin_layers.py on your machine to build the data bundle.';}
+
+/* Item 3, added 2026-09-12: numbered rank badges in the left-hand news list link to
+   their waypoint on the map. Colour-matches the rank digit to the waypoint's own star
+   colour (green for a grade result, jasper blue for everything else - see NEWSXCOL
+   above) so the two views read as the same colour language, then click jumps the map
+   to that waypoint at a closer zoom and reopens its tooltip, reusing showTip() rather
+   than duplicating its markup. Items with no map anchor (an editorial item with
+   nothing to plot - e.g. a financing with no property tie) are left as plain,
+   unstyled, unclickable text: nothing to jump to, so nothing pretends otherwise. */
+function panToWaypoint(w){
+  if(!home)return;
+  var targetS=Math.max(view.s,home.s*4);
+  view.tx=W/2-w.p[0]*targetS; view.ty=H/2-w.p[1]*targetS; view.s=targetS;
+  draw();
+  if(stage&&stage.scrollIntoView)stage.scrollIntoView({behavior:'smooth',block:'center'});
+  showTip({t:'news',o:w},sx(w.p),sy(w.p));
+}
+(function(){
+  var ALLNEWS=NEWSG.concat(NEWSD).concat(NEWSO).concat(NEWSX);
+  document.querySelectorAll('.news .item').forEach(function(it){
+    var rk=it.querySelector('.rank'); if(!rk)return;
+    var num=parseInt(rk.textContent,10); if(!num)return;
+    var w=null;
+    for(var i=0;i<ALLNEWS.length;i++){if(ALLNEWS[i].num===num){w=ALLNEWS[i];break;}}
+    if(!w)return;
+    rk.style.color=w.col; rk.classList.add('linked'); rk.title='Show on map';
+    rk.addEventListener('click',function(){panToWaypoint(w);});
+  });
+})();
+
 window.addEventListener('resize',resize);
 resize();
 })();
