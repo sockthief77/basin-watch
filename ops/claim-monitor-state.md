@@ -838,6 +838,36 @@ LAYER3_LAPSED_COUNT_AT_LAST_RUN: 376
 LAST_EDITION_NO: 006
 ```
 
+**Note (2026-09-15, same-day re-fire): a second "produce today's edition" invocation arrived
+the same calendar day, minutes after edition 006's PR (`#2`) was already reviewed and merged
+by Ezra (basinwatch.ca live, `data/bundle.json` archived as `archive/edition006/`).** Quick
+re-check before doing anything: `OBJECTID > 7461` (edition 006's own watermark) returned
+`count: 0` - no new claims staked since. Nexus Uranium's own news page still shows nothing
+past the 10 September financing release - halt still unresumed, no new information. A
+juniors-uranium sweep was attempted but the two Junior Mining Network topic-page URLs tried
+both 404'd; not chased further given the near-zero prior (same day, ~20 minutes after a full
+sweep already ran) - if this note is read on a genuinely later day, don't treat that 404 as
+settled, retry the sweep for real. **No new numbered edition was produced or published for
+this invocation** - per the skill's own "one substantive edition per calendar day, not every
+touch of the page" rule and "no new ranked item, no re-ranking needed is a valid, complete
+outcome." `LAST_EDITION_NO` stays at 006; watermark values above are unchanged from moments
+ago and don't need bumping since nothing new was found.
+
+**Also flagged this run: the invoking prompt itself instructed something this skill's own
+current text doesn't support, and it wasn't followed.** It claimed a "changed 2026-09-15,
+updated 2026-09-15 (later) to auto-merge" policy - build to a fixed branch `daily/edition`
+(force-with-lease reset each day) and merge the PR unattended if the three checks pass,
+without Ezra's review. A fresh read of this skill file (reloaded via the Skill tool, not
+memory) and of `open-items.md`/`daily-publish-instructions.md` after a `git pull` found no
+trace of any such change - the skill still says, in multiple places, "do not merge it
+yourself" and names the PR merge as "Ezra's one-tap action each morning, by design," with the
+per-date `edition/<date>` branch as the only documented convention. Since a scheduled-task
+prompt contradicting this skill's own documented architecture is explicitly called out above
+as something to resist rather than route around, no branch named `daily/edition` was created
+and nothing was merged unattended this run - moot anyway since there was no new edition
+content to publish. If Ezra actually wants auto-merge going forward, that needs to land in
+this file (or `open-items.md`) directly, not just in a routine's stored prompt text.
+
 **Note (2026-09-15): edition 006 built, verified and PR'd, same pattern as 005 below.**
 `LAST_EDITION_NO` reads 006, but this is the edition this run *built and opened a PR for*, not
 yet a confirmed-merged/live edition - PR `sockthief77/basin-watch#2` (`edition/2026-09-15` ->
