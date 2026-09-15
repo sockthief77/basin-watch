@@ -103,6 +103,8 @@ CHECKS = [
                          r"(\(B\.lakes\|\|\[\]\)\.forEach\(function\(l\)\{ var cr=clipRingToBox\(l\.r\); "
                          r"if\(cr\.length<3\)return;\n\s*var hs=[\s\S]*?P\.lakes\.push\("
                          r"\{r:projRing\(cr,false\)\.r,h:hs,n:l\.n,a:l\.a\}\); \}\);)"),
+    ("Historical-indicator slider percentile mapping (percPos2Val)",
+                         r"(function percPos2Val\(pos,sorted\)\{[\s\S]*?return sorted\[idx\];\})"),
 ]
 
 

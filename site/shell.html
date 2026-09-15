@@ -1188,6 +1188,20 @@ var HMAXC=P.heat.reduce(function(m,h){return Math.max(m,h.mx);},1);
 var GMAXN=P.geochem.reduce(function(m,h){return Math.max(m,h.n);},1);
 var GMAXC=P.geochem.reduce(function(m,h){return Math.max(m,h.mx);},1);
 var SMDI_MAXPPM=P.smdi.reduce(function(m,d){return Math.max(m,d.ppm||0);},1);
+/* Percentile-calibrated slider data, added 2026-09-15 ("after a couple steps, almost
+   half the data is gone"). The old floor-to-max log curve (floor=max/1000) assumed the
+   data was roughly log-uniform between those two points - it isn't: these three
+   datasets are so right-skewed that a single high outlier alone can drag the floor
+   past the MEDIAN. Confirmed live on Lake & Soil Heat: max=1840 put the floor at 1.84,
+   which already excluded 51% of cells at the very first non-zero slider position.
+   Sorting the real values once here and mapping slider position directly to a
+   percentile of THIS dataset (see percPos2Val below) guarantees the opposite property
+   regardless of outliers: equal slider travel removes a roughly equal, predictable
+   share of what's currently loaded. */
+function numSort(a,b){return a-b;}
+var HEAT_SORTED=P.heat.map(function(h){return h.mx;}).sort(numSort);
+var GEOCHEM_SORTED=P.geochem.map(function(h){return h.mx;}).sort(numSort);
+var SMDI_SORTED=P.smdi.map(function(d){return d.ppm||0;}).sort(numSort);
 var hasData=P.tenure.length||P.claims.length||P.deps.length||P.conds.length||P.heat.length||P.news.length;
 if(!hasData){minx=-400;maxx=400;miny=-400;maxy=400;}
 
@@ -2036,28 +2050,37 @@ var heatBar=document.getElementById('heatbar');
    work"; Boulder Heat / Lake & Soil Heat sliders "much too aggressive... maybe log scaling
    is more appropriate"). All three datasets are extremely right-skewed - the vast majority
    of records/grid-cells sit under 10% of the layer's max value, so a *linear* 0..max slider
-   put nearly all of the useful range inside the first tick or two. The <input type=range>
-   now carries a 0..LOGSTEPS *position*, not the real filter value; logPos2Val() maps that
-   position onto an exponential curve from a small floor (max/1000) up to the layer's real
-   max, so equal slider travel gives roughly equal data density instead of equal ppm/cps.
-   Position 0 still always means "no filtering". (The SMDI max itself was also independently
-   blown out by a handful of misparsed >100%-U3O8 grades - see the pct sanitizing fix at the
-   P.smdi ingestion loop above - so this is a second, complementary fix, not a substitute.) */
+   put nearly all of the useful range inside the first tick or two.
+   Switched AGAIN, 2026-09-15, from that log curve to a percentile curve (see
+   percPos2Val below) - the log curve's floor (max/1000) is still just a fixed ratio of
+   the single largest value, and a lone outlier can drag it well past the data's own
+   median: confirmed live on Lake & Soil Heat, where max=1840 put the floor at 1.84,
+   already excluding 51% of cells at the very first non-zero slider tick ("after a
+   couple steps, almost half the data is gone"). A percentile curve is calibrated to
+   the ACTUAL loaded distribution instead of a fixed ratio, so equal slider travel
+   removes a roughly equal, predictable share of data regardless of how skewed or
+   outlier-heavy that distribution is. The <input type=range> still carries a
+   0..LOGSTEPS *position*, not the real filter value; percPos2Val() maps that position
+   to the value at that percentile of the layer's own sorted values (HEAT_SORTED /
+   GEOCHEM_SORTED / SMDI_SORTED, built above). Position 0 still always means "no
+   filtering". (The SMDI max itself was also independently blown out by a handful of
+   misparsed >100%-U3O8 grades - see the pct sanitizing fix at the P.smdi ingestion loop
+   above - so this is a second, complementary fix, not a substitute.) */
 var LOGSTEPS=480;
-function logPos2Val(pos,maxVal){ if(pos<=0)return 0;
-  var floor=Math.max(maxVal/1000,1e-6),t=pos/LOGSTEPS;
-  return floor*Math.pow(maxVal/floor,t);}
+function percPos2Val(pos,sorted){ if(pos<=0||!sorted.length)return 0;
+  var idx=Math.min(sorted.length-1,Math.floor(pos/LOGSTEPS*sorted.length));
+  return sorted[idx];}
 var SLIDER_SPECS={
   smdi:function(){ if(!P.smdi.length)return null;
-    return {label:'Min grade',log:true,max:SMDI_MAXPPM,
+    return {label:'Min grade',perc:true,sorted:SMDI_SORTED,
       fmt:function(v){return v?(Math.round(v).toLocaleString()+' ppm U and up ('+(v/8480).toFixed(3)+'% U3O8)'):'all occurrences';},
       onInput:function(v){F.smdippm=v;}};},
   heat:function(){ if(!P.heat.length)return null;
-    return {label:'Min peak',log:true,max:HMAXC,
+    return {label:'Min peak',perc:true,sorted:HEAT_SORTED,
       fmt:function(v){return Math.round(v)+' cps and up';},
       onInput:function(v){F.cps=v;}};},
   geochem:function(){ if(!P.geochem.length)return null;
-    return {label:'Min U ppm',log:true,max:GMAXC,
+    return {label:'Min U ppm',perc:true,sorted:GEOCHEM_SORTED,
       fmt:function(v){return (v<10?v.toFixed(1):Math.round(v))+' ppm and up';},
       onInput:function(v){F.uppm=v;}};}
 };
@@ -2078,7 +2101,7 @@ function mkLyrToggle(l,container){var n=l.get(),checked=!!(n&&ON[l.k]);
     wrap=document.createElement('div');wrap.className='lyrgrp';wrap.appendChild(lab);
     slRow=document.createElement('div');slRow.className='lyrslide'+(ON[l.k]?'':' dis');
     slInput=document.createElement('input');slInput.type='range';
-    if(spec.log){slInput.min=0;slInput.max=LOGSTEPS;slInput.step=1;}
+    if(spec.perc){slInput.min=0;slInput.max=LOGSTEPS;slInput.step=1;}
     else{slInput.min=spec.min;slInput.max=spec.max;slInput.step=spec.step;}
     slInput.value=0;
     slInput.disabled=!ON[l.k];
@@ -2089,7 +2112,7 @@ function mkLyrToggle(l,container){var n=l.get(),checked=!!(n&&ON[l.k]);
     slInput.addEventListener('pointerdown',function(e){e.stopPropagation();});
     slInput.addEventListener('click',function(e){e.stopPropagation();});
     slInput.addEventListener('input',function(){
-      var v=spec.log?logPos2Val(+slInput.value,spec.max):+slInput.value;
+      var v=spec.perc?percPos2Val(+slInput.value,spec.sorted):+slInput.value;
       spec.onInput(v);slVal.textContent=spec.fmt(v);draw();});
     slRow.appendChild(slInput);slRow.appendChild(slVal);
     wrap.appendChild(slRow);
