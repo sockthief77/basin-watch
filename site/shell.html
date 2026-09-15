@@ -90,7 +90,7 @@ h2.sec:first-of-type{margin-top:0}
    uppercase/letter-spacing/weight it would otherwise inherit from h2.sec, since those
    only make sense for the heading text, not the swatch labels sitting next to it. */
 h2.sec .lg{text-transform:none;letter-spacing:normal;font-weight:400}
-h2.sec::after{content:"";flex:0 1 40px;height:1px;background:var(--line)}
+h2.sec::after{content:"";flex:1 1 20px;height:1px;background:var(--line)}
 /* Legend group centred across the FULL header row 2026-09-15, not just in the space left
    over after the title - centering within leftover space alone would drift right the
    wider the title text is, since the title still eats into that space unevenly. Absolute-
@@ -103,7 +103,7 @@ h2.sec::after{content:"";flex:0 1 40px;height:1px;background:var(--line)}
    title text instead of beside it. Using a plain inline flex layout here instead - robust
    at any container width, wraps to its own line via h2.sec's existing flex-wrap if the
    row runs out of room, never overlaps. */
-h2.sec .lggroup{flex:1 1 auto;min-width:0;display:flex;justify-content:center;align-items:center;gap:14px}
+h2.sec .lggroup{flex:0 0 auto;display:flex;align-items:center;gap:14px}
 .seclead{color:var(--muted);font-size:13.5px;margin:0 0 16px;max-width:70ch}
 
 /* news */
