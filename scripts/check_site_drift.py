@@ -71,6 +71,8 @@ CHECKS = [
                          r"(ctx\.lineWidth=Math\.max\([\d.]+,Math\.min\([\d.]+,view\.s\*[\d.]+\)\);ctx\.stroke\(\);)"),
     ("Lake/river fill+stroke translucency",
                          r"(ctx\.fillStyle='rgba\(61,111,138,[\d.]+\)';ctx\.strokeStyle='rgba\(61,111,138,[\d.]+\)';ctx\.lineWidth=\.7;)"),
+    ("Archive list collapse (COLLAPSE_AFTER + toggle)",
+                         r"(var COLLAPSE_AFTER=\d+;[\s\S]*?archEl\.appendChild\(toggle\);\n\}\)\(\);)"),
 ]
 
 

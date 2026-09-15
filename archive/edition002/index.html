@@ -13,7 +13,12 @@
   color-scheme:dark;
   --ground:#272727; --surface:#323131; --surface-2:#383837; --sunk:#232323;
   --ink:#F9F9F7; --muted:#C3C2B7; --faint:#97958D; --line:#444341; --line-soft:#343432;
-  --accent:#D97757; --accent-ink:#F0A382; --accent-soft:#3D2A21;
+  /* --accent/--accent-ink/--accent-soft desaturated 2026-09-15 (was orange-terracotta
+     #D97757/#F0A382/#3D2A21) to a neutral warm stone, matching the live claude.ai pages'
+     same-day change - the old orange competed visually with the map's Milestone-orange
+     news colour. --hot/--hot-soft were explicitly left unchanged (kept as the page's
+     "important number" emphasis colour, distinct from UI chrome) - don't touch those. */
+  --accent:#9C9890; --accent-ink:#D8D4C8; --accent-soft:#38362F;
   --hot:#E9764F; --hot-soft:#331F17;
   --home:#5FADEA; --home-soft:#12283A;
 }
@@ -61,6 +66,13 @@ h1,h2,h3,.cond{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,s
 h2.sec{font-size:13px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
   font-weight:600;margin:26px 0 4px;display:flex;align-items:center;gap:10px}
 h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+/* Colour-swatch legend row under "Ranked by technical materiality" (added 2026-09-15,
+   live pages only so far - kept here so an archived edition renders it correctly the
+   day the daily pipeline starts emitting it too, instead of drifting silently). */
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:0;padding-top:0;
+  border-top:none;margin-bottom:16px}
+.lg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.sw{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
 
 .news{display:flex;flex-direction:column;gap:1px;background:var(--line);
   border:1px solid var(--line);margin-bottom:22px}
@@ -84,9 +96,21 @@ h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
   border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .chip.g{background:var(--hot-soft);border-color:transparent;color:var(--hot);font-weight:600}
 .chip.s{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink);font-weight:500}
+.chip.p{background:var(--home-soft);border-color:transparent;color:var(--home);font-weight:500}
 .chip.warn{border-style:dashed;border-color:var(--hot);color:var(--hot)}
-.g-assay{font-family:"IBM Plex Mono",monospace;font-weight:700;color:#F2C14E}
-.g-cps{font-family:"IBM Plex Mono",monospace;font-style:italic;font-weight:500;color:#B295DC}
+/* g-assay-fresh/g-assay/g-cps kept byte-for-byte in sync with the live claude.ai pages'
+   own rule (added 2026-09-15, .g-assay recoloured gold->sky-blue 2026-09-15 same day -
+   gold read too close to the Milestone/Other-News orange+yellow pair) - an archived
+   edition needs to render exactly as it looked live, not fall back to unstyled text (or
+   a stale colour) because this template's copy had drifted behind. Green = the item's
+   own freshly reported number, sky-blue = a quoted/historical comparison figure, purple
+   = a raw counts-per-second reading, not a grade. */
+.g-assay-fresh{font-family:"IBM Plex Mono",monospace;font-weight:700;color:#00e64d;
+  text-shadow:0 0 10px rgba(0,230,77,.45);letter-spacing:.01em;word-spacing:-.3em}
+.g-assay{font-family:"IBM Plex Mono",monospace;font-weight:700;color:#38BDF8;
+  text-shadow:0 0 10px rgba(56,189,248,.45);letter-spacing:.01em;word-spacing:-.3em}
+.g-cps{font-family:"IBM Plex Mono",monospace;font-style:italic;font-weight:500;
+  color:#B295DC;word-spacing:-.3em}
 
 .stk{border:1px solid var(--line);background:var(--surface-2);padding:9px 11px;
   font-family:"IBM Plex Mono",monospace;display:flex;flex-direction:column;gap:2px}

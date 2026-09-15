@@ -147,6 +147,9 @@ h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
 .arow .ad{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);flex:0 0 auto}
 .arow .as{color:var(--muted)}
 .arow .cur{color:var(--accent-ink);font-weight:600}
+.archtoggle{cursor:pointer;justify-content:center;color:var(--accent-ink);
+  font-weight:600;font-size:12.5px;letter-spacing:.02em}
+.archtoggle:hover{background:var(--surface-2)}
 footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);
   font-size:12.5px;color:var(--faint);line-height:1.6}
 footer a{color:var(--muted)}
@@ -2130,6 +2133,40 @@ function panToWaypoint(w){
     rk.style.color=w.col; rk.classList.add('linked'); rk.title='Show on map';
     rk.addEventListener('click',function(){panToWaypoint(w);});
   });
+})();
+
+/* Archive list collapsed to the most recent 3 editions by default (added 2026-09-15) -
+   the full history row-by-row was getting long as editions accumulate day over day.
+   Pure progressive enhancement over the static .arow markup already in the page: with
+   JS disabled the full list just shows, same as before. */
+(function(){
+  var COLLAPSE_AFTER=3;
+  var archEl=document.querySelector('.arch');
+  if(!archEl)return;
+  var rows=Array.prototype.slice.call(archEl.querySelectorAll('.arow'));
+  if(rows.length<=COLLAPSE_AFTER)return;
+  var hidden=rows.slice(COLLAPSE_AFTER);
+  hidden.forEach(function(r){r.hidden=true;});
+  var toggle=document.createElement('div');
+  toggle.className='arow archtoggle';
+  toggle.tabIndex=0;
+  toggle.setAttribute('role','button');
+  var open=false;
+  function setLabel(){
+    toggle.textContent=open?'Show fewer editions ▴':
+      'Show '+hidden.length+' more edition'+(hidden.length===1?'':'s')+' ▾';
+  }
+  setLabel();
+  function toggleOpen(){
+    open=!open;
+    hidden.forEach(function(r){r.hidden=!open;});
+    setLabel();
+  }
+  toggle.addEventListener('click',toggleOpen);
+  toggle.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleOpen();}
+  });
+  archEl.appendChild(toggle);
 })();
 
 window.addEventListener('resize',resize);

@@ -17,6 +17,7 @@ error).
 """
 import json
 import os
+import re
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if os.path.basename(os.path.dirname(os.path.abspath(__file__))) == "scripts" else os.getcwd()
@@ -216,6 +217,42 @@ Basin Watch — Athabasca Basin uranium competitor brief. Archived edition, no l
 
 PREV_NAV_TEMPLATE = '<div class="prevnav"><a href="/archive/edition{prev_padded}/">&larr; Previous edition (No. {prev_padded})</a></div>'
 
+_STYLE_RE = re.compile(r"<style>\n.*?\n</style>", re.S)
+
+
+def resync_archive_styles(skip_dir_name=None):
+    """Re-point every existing archive page's <style> block at the CURRENT template's
+    CSS (colours, chip/grade/cps rules, layout, etc). The <style> block is pure
+    presentation, not historical record - it should always match how the live site
+    looks today, even for an edition archived months ago. Only the content
+    (edition_top_html/edition_bottom_html, generated date, prev-nav) stays frozen as
+    originally published. Skips skip_dir_name since that page was just written fresh
+    from the current template already."""
+    if not os.path.isdir(ARCHIVE_DIR):
+        return
+    # TEMPLATE is an unformatted str.format() template, so its literal braces are
+    # still escaped ({{ / }}) here - unescape them to get real, renderable CSS.
+    current_style_block = _STYLE_RE.search(TEMPLATE).group(0).replace("{{", "{").replace("}}", "}")
+    updated = 0
+    for name in sorted(os.listdir(ARCHIVE_DIR)):
+        if name == skip_dir_name:
+            continue
+        path = os.path.join(ARCHIVE_DIR, name, "index.html")
+        if not os.path.exists(path):
+            continue
+        with open(path, "r", encoding="utf-8") as f:
+            html = f.read()
+        if not _STYLE_RE.search(html):
+            continue
+        new_html = _STYLE_RE.sub(lambda m: current_style_block, html, count=1)
+        if new_html != html:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new_html)
+            updated += 1
+            print(f"  resynced styling: archive/{name}/index.html")
+    if updated:
+        print(f"Resynced styling on {updated} older archive page(s).")
+
 
 def main():
     if not os.path.exists(EDITION_JSON):
@@ -256,11 +293,14 @@ def main():
     out_dir = os.path.join(ARCHIVE_DIR, f"edition{edition_padded}")
     out_path = os.path.join(out_dir, "index.html")
 
+    edition_dir_name = f"edition{edition_padded}"
+
     if os.path.exists(out_path):
         with open(out_path, "r", encoding="utf-8") as f:
             existing = f.read()
         if existing == html:
             print(f"No change: {out_path} already up to date.")
+            resync_archive_styles(skip_dir_name=edition_dir_name)
             return
         print(f"NOTE: {out_path} already exists with DIFFERENT content - overwriting. "
               f"This means edition {edition_padded} was archived once already (a re-run or a "
@@ -271,6 +311,8 @@ def main():
         f.write(html)
 
     print(f"Wrote {out_path} ({len(html)} bytes)")
+
+    resync_archive_styles(skip_dir_name=edition_dir_name)
 
 
 if __name__ == "__main__":
