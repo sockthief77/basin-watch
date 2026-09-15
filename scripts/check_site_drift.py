@@ -56,7 +56,7 @@ CHECKS = [
     ("ANCLAB (anchor-method tooltip labels)", r"(var ANCLAB=\{[^}]*\};)"),
     ("ANCUNC (default anchor uncertainty)",   r"(var ANCUNC=\{[^}]*\};)"),
     ("Mines & Mills fill/stroke",
-                         r"(ctx\.fillStyle='#000000';ctx\.fill\(\);[^\n]*\n\s*\}\);)"),
+                         r"(ctx\.fillStyle='#[0-9A-Fa-f]{6}';ctx\.fill\(\);[^\n]*\n\s*\}\);)"),
     ("Mines & Mills legend swatch colour",
                          r"\{k:'mine',\s*label:'Mines & Mills',\s*color:'(#[0-9A-Fa-f]{6})'"),
     ("clipRingToBox/clipLineToBox present", r"(function clipRingToBox\(ring\)\{)"),

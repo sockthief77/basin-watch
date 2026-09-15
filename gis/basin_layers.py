@@ -318,6 +318,22 @@ def main():
             simp = dp(path, 0.004)
             if len(simp) >= 2:
                 hb.append({"n": label, "p": rnd(simp, 3)})
+    # Supplementary mine-access roads, added 2026-09-15 - Saskatchewan's public
+    # Transportation/MapServer (all of layers 133-140: Primary/Secondary/Municipal/
+    # Collector/Resource-Recreation Highways) simply doesn't carry the Key Lake-to-
+    # McArthur River or Cigar Lake-to-McClean/Rabbit Lake roads at all - both are
+    # private mine-access roads. Sourced from a user-provided shapefile instead (see
+    # gis/supplementary/mine_access_roads.json's own "_source"/"_validated" fields for
+    # exactly how these two segments were identified and checked against known mine
+    # coordinates) and pre-simplified with this same file's dp()/rnd(). Deliberately
+    # unlabeled ("n":"") - the source data carries no route name/number for either, so
+    # none is invented here.
+    supp_path = os.path.join(HERE, "supplementary", "mine_access_roads.json")
+    if os.path.exists(supp_path):
+        with open(supp_path) as f:
+            supp = json.load(f)
+        hb += supp.get("highways", [])
+        print(f"  + {len(supp.get('highways', []))} supplementary mine-access road segment(s)")
     B["highways"] = hb
     n_named_hw = sum(1 for h in hb if h["n"])
     print(f"  highway segments bundled: {len(hb)} ({n_named_hw} carry a route label)")

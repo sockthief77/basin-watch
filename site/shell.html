@@ -1185,7 +1185,7 @@ var LAYERS=[
  {k:'lapall',label:'Lapsed Claims', color:'#f5921e', get:function(){return P.lapreg.length;}},
  {k:'dep',   label:'Uranium Deposits',    color:'#ff0000', get:function(){return P.deps.length;}},
  {k:'foot',  label:'Deposit Footprints',color:'#ff0000',get:function(){return P.foots.length;}},
- {k:'mine',  label:'Mines & Mills', color:'#000000', get:function(){return P.mines.length;}},
+ {k:'mine',  label:'Mines & Mills', color:'#B8B4AC', get:function(){return P.mines.length;}},
  {k:'cond',  label:'EM Conductors', color:'#bebebe', get:function(){return P.conds.length;}},
  /* Swatch muted off pure white 2026-09-15 - was visually identical to New Claims' dot
     in this list (both crisp white); the map's own restricted-lands fill is already a
@@ -1663,8 +1663,8 @@ function draw(){
     P.mines.forEach(function(m){var x=sx(m.p),y=sy(m.p);if(x<-20||x>W+20||y<-20||y>H+20)return;
       var sMin=3.6,s=Math.min(6.0,sMin*mineZoom),sb=s*0.72;
       ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x+s,y+sb);ctx.lineTo(x-s,y+sb);ctx.closePath();
-      ctx.fillStyle='#000000';ctx.fill();
-      ctx.strokeStyle=surf;ctx.lineWidth=1.3;ctx.stroke();});
+      ctx.fillStyle='#B8B4AC';ctx.fill();
+      ctx.strokeStyle='#272727';ctx.lineWidth=1.3;ctx.stroke();});
     ctx.restore();}
 
   if(ON.place&&P.places.length){ctx.save();
