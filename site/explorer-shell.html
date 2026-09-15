@@ -1107,9 +1107,9 @@ var LAYERS=[
    get:function(){return P.surveys.filter(function(s){return s.ty==='ground';}).length;}},
  {k:'survair',label:'Airborne Surveys',color:'#8FA8D9',
    get:function(){return P.surveys.filter(function(s){return s.ty==='air';}).length;}},
- {k:'smdi',  label:'SMDI Grade', color:'#38BDF8', get:function(){return P.smdi.length;}},
- {k:'heat',  label:'Boulder CPS',  color:'#e6b40a', get:function(){return P.heat.length;}},
- {k:'geochem',label:'Lake & Soil CPS', color:'#2dd4bf', get:function(){return P.geochem.length;}}
+ {k:'smdi',  label:'SMDI Uranium Occurrence', color:'#38BDF8', get:function(){return P.smdi.length;}},
+ {k:'heat',  label:'Radioactive Boulder CPS',  color:'#e6b40a', get:function(){return P.heat.length;}},
+ {k:'geochem',label:'Lake Sediment & Soil CPS', color:'#2dd4bf', get:function(){return P.geochem.length;}}
 ];
 /* Heat-style layers (density/interpolated surfaces rather than discrete features)
    split into their own box below the main toggles, 2026-09-09 night, per explicit
