@@ -143,6 +143,17 @@ h2.sec .lggroup{flex:0 0 auto;display:flex;align-items:center;gap:14px}
 /* map */
 .mapcard{background:var(--surface);border:1px solid var(--line);padding:15px 16px 12px;margin-bottom:0}
 .caption{font-size:11.5px;color:var(--faint);margin:10px 0 0;line-height:1.45}
+/* Mobile map collapse (added 2026-09-15) - see the JS block near the end of this
+   script for why. .mapreveal is only ever shown by JS adding .collapsed to
+   #mapcard, so it needs no width-based media query of its own here. */
+.mapreveal{display:none;align-items:center;justify-content:center;gap:8px;
+  flex-direction:column;padding:30px 16px;text-align:center}
+.mapreveal .mrbtn{background:var(--accent-soft);color:var(--accent-ink);
+  border:1px solid var(--accent);border-radius:3px;padding:9px 18px;
+  font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.mapreveal .mrnote{font-size:12px;color:var(--faint)}
+.mapcard.collapsed .mapgrid{display:none}
+.mapcard.collapsed .mapreveal{display:flex}
 
 /* table */
 .tbl{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--surface)}
@@ -460,7 +471,11 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <!--__EDITION_TOP__-->
 
-<div class="mapcard">
+<div class="mapcard" id="mapcard">
+  <div class="mapreveal" id="mapReveal">
+    <button type="button" class="mrbtn" id="mapRevealBtn">View interactive map</button>
+    <span class="mrnote">Basin Explorer, inline - tenure, deposits, news and more</span>
+  </div>
   <div class="mapgrid">
     <div class="layercol">
       <div class="layerbar" id="layerbar"></div>
@@ -2297,6 +2312,29 @@ function panToWaypoint(w){
     if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleOpen();}
   });
   archEl.appendChild(toggle);
+})();
+
+/* Mobile map collapse, added 2026-09-15: .mapcard carries the full canvas +
+   legend + controls UI (the same weight as Basin Explorer itself, inlined) -
+   on a phone that's a lot of layout/paint work for content most brief readers
+   scroll straight past without opening. Collapsed by default under 700px
+   (matches the #mapcv height breakpoint above) behind a single tap; desktop/
+   tablet is unaffected. Note this doesn't shrink the page's download size -
+   the whole file, BASIN_BUNDLE included, already arrived before this code runs
+   - it only defers the canvas resize()/draw() cost (which walks every tenure,
+   lake and claim feature) until someone actually wants the map. Decided once
+   at load, not re-checked on rotate/resize, matching this file's existing
+   preference for simple one-shot checks over continuous media-query state. */
+(function(){
+  var mapCardEl=document.getElementById('mapcard');
+  var revealBtn=document.getElementById('mapRevealBtn');
+  if(!mapCardEl||!revealBtn)return;
+  if(window.innerWidth>700)return;
+  mapCardEl.classList.add('collapsed');
+  revealBtn.addEventListener('click',function(){
+    mapCardEl.classList.remove('collapsed');
+    resize();
+  });
 })();
 
 window.addEventListener('resize',resize);
