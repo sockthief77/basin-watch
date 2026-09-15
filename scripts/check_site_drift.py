@@ -95,6 +95,14 @@ CHECKS = [
                          r"(ctx\.fillStyle='rgba\(61,111,138,[\d.]+\)';ctx\.strokeStyle='rgba\(61,111,138,[\d.]+\)';ctx\.lineWidth=\.7;)"),
     ("Archive list collapse (COLLAPSE_AFTER + toggle)",
                          r"(var COLLAPSE_AFTER=\d+;[\s\S]*?archEl\.appendChild\(toggle\);\n\}\)\(\);)"),
+    ("Lake island/hole fill (evenodd)",
+                         r"(P\.lakes\.forEach\(function\(l\)\{ctx\.beginPath\(\);poly\(l\.r,true\);\n"
+                         r"\s*\(l\.h\|\|\[\]\)\.forEach\(function\(h\)\{poly\(h,true\);\}\);\n"
+                         r"\s*ctx\.fill\('evenodd'\);ctx\.stroke\(\);\}\);)"),
+    ("Lake bundle prep (hole clip+project)",
+                         r"(\(B\.lakes\|\|\[\]\)\.forEach\(function\(l\)\{ var cr=clipRingToBox\(l\.r\); "
+                         r"if\(cr\.length<3\)return;\n\s*var hs=[\s\S]*?P\.lakes\.push\("
+                         r"\{r:projRing\(cr,false\)\.r,h:hs,n:l\.n,a:l\.a\}\); \}\);)"),
 ]
 
 

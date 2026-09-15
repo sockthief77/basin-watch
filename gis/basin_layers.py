@@ -540,8 +540,16 @@ def main():
         rings = g.get("rings", [])
         if not rings:
             continue
-        best = max(rings, key=ring_area)  # drop small interior/adjacent slivers
-        lakes_ranked.append((ring_area(best), name_of(f.get("attributes", {})), best))
+        best = max(rings, key=ring_area)
+        # Every OTHER ring in this same feature used to be silently dropped as a "small
+        # interior/adjacent sliver" - fine for genuine noise, wrong for Lake Athabasca
+        # (1,543 of these) and Tazin Lake (204), whose extra rings are real islands, not
+        # slivers. Kept here as holes rather than filtered by area/point-count now - the
+        # per-ring dp() simplification + len<=2 check in the assembly loop below already
+        # naturally drops anything too small to render, the same way it already does for
+        # the main ring, so a second size-based filter here would just be redundant.
+        extra = [r for r in rings if r is not best]
+        lakes_ranked.append((ring_area(best), name_of(f.get("attributes", {})), best, extra))
     for f in ab_lk:
         g = f.get("geometry") or {}
         rings = g.get("rings", [])
@@ -551,6 +559,7 @@ def main():
         if not any(ABWIN[0] <= x <= ABWIN[2] and ABWIN[1] <= y <= ABWIN[3] for x, y in big):
             continue  # outside the Alberta basin window - see ABWIN definition at top
         best = max(rings, key=ring_area)
+        extra = [r for r in rings if r is not best]
         # Clip to strictly west of the real AB/SK border (see BORDER_LON above) - ABWIN's
         # own east edge is a degree too generous for this, and an unclipped ring here was
         # overlapping Saskatchewan's own lake geometry right at the border, producing a
@@ -559,7 +568,9 @@ def main():
         if len(best) < 3:
             continue  # this feature turned out to lie entirely on the Saskatchewan side -
                        # SK's own layer 80 (queried above) already covers that ground
-        lakes_ranked.append((ring_area(best), name_of(f.get("attributes", {})), best))
+        extra = [clip_ring(r, (-180.0, -90.0, BORDER_LON, 90.0)) for r in extra]
+        extra = [r for r in extra if len(r) >= 3]
+        lakes_ranked.append((ring_area(best), name_of(f.get("attributes", {})), best, extra))
     lakes_ranked.sort(key=lambda t: -t[0])
     lb = []
     skipped_bad = 0
@@ -616,7 +627,8 @@ def main():
     lakes_ranked = (sorted([t for t in lakes_ranked if _is_named_river(t[1], t[2])], key=lambda t: -t[0])
                     + sorted([t for t in lakes_ranked if not _is_named_river(t[1], t[2])], key=lambda t: -t[0]))
     LAKE_CAP = 60
-    for a, nm, r in lakes_ranked:
+    total_holes = 0
+    for a, nm, r, extra in lakes_ranked:
         if len(lb) >= LAKE_CAP:
             break
         s2 = dp(r, 0.003)
@@ -632,11 +644,28 @@ def main():
         nm2 = nm if (nm or "").strip() else gazetteer_name(s2)
         if nm2 and not (nm or "").strip():
             named_from_gazetteer += 1
-        lb.append({"n": nm2 or "", "a": round(a, 1), "r": rnd(s2, 4)})
+        # Holes (islands) - simplified and self-intersection-checked the same way as the
+        # main ring, just skipped individually rather than disqualifying the whole lake.
+        # Rendered with an even-odd fill rule client-side (see map-pipeline.md "lake
+        # holes"), so winding order doesn't matter here - any closed, simple ring works.
+        holes = []
+        for hr in extra:
+            h2 = dp(hr, 0.003)
+            if len(h2) <= 2:
+                continue  # too small to matter at this simplification tolerance
+            if ring_self_intersects(h2):
+                continue  # same standard as the main ring; a bad island is dropped, not the whole lake
+            holes.append(rnd(h2, 4))
+        entry = {"n": nm2 or "", "a": round(a, 1), "r": rnd(s2, 4)}
+        if holes:
+            entry["h"] = holes
+            total_holes += len(holes)
+        lb.append(entry)
     B["lakes"] = lb
     print(f"  lakes bundled: {len(lb)} ({len(lk)} SK candidates, {len(ab_lk)} AB candidates, "
           f"{skipped_bad} skipped as self-intersecting, {named_from_gazetteer} named from the gazetteer, "
-          f"{rivers_prioritized} named rivers guaranteed a slot ahead of area ranking)")
+          f"{rivers_prioritized} named rivers guaranteed a slot ahead of area ranking, "
+          f"{total_holes} island/hole rings kept across all lakes)")
 
     # ---- 7. radioactive boulders -> cps grid ----
     # Static historical dataset (boulder occurrences logged over decades) - the true

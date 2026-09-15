@@ -910,7 +910,10 @@ TENURE_F.forEach(function(t){ var pr=projRing(t.r,true);
     lapseSoon:lapseSoon, lapseSoon2:lapseSoon2, dep:dep}); });
 CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
   P.claims.push({p:p,ll:[c.x,c.y],d:c.d,o:c.o,e:c.e,corp:!!c.corp,orphan:!(c.d&&TENIDS[c.d])}); });
-(B.lakes||[]).forEach(function(l){ var cr=clipRingToBox(l.r); if(cr.length<3)return; P.lakes.push({r:projRing(cr,false).r,n:l.n,a:l.a}); });
+(B.lakes||[]).forEach(function(l){ var cr=clipRingToBox(l.r); if(cr.length<3)return;
+  var hs=(l.h||[]).map(function(h){return clipRingToBox(h);}).filter(function(ch){return ch.length>=3;})
+    .map(function(ch){return projRing(ch,false).r;});
+  P.lakes.push({r:projRing(cr,false).r,h:hs,n:l.n,a:l.a}); });
 (B.deposits||[]).forEach(function(d){ if(!northOK(d.x,d.y))return; var p=PROJ(d.x,d.y); ext(p);
   P.deps.push({p:p,ll:[d.x,d.y],n:d.n,s:d.s,prod:d.p,id:d.id}); });
 /* SMDI uranium occurrences (added 2026-09-09) - the full Mineral Deposits Index
@@ -1188,7 +1191,20 @@ function draw(){
 
   if(ON.lake&&P.lakes.length){ctx.save();
     ctx.fillStyle='rgba(61,111,138,.38)';ctx.strokeStyle='rgba(61,111,138,.6)';ctx.lineWidth=.7;
-    P.lakes.forEach(function(l){ctx.beginPath();poly(l.r,true);ctx.fill();ctx.stroke();});
+    /* Island/hole support, added 2026-09-15: a lake's own islands (Lake Athabasca and
+       Tazin Lake both carry hundreds of real ones - see map-pipeline.md "lake holes")
+       ship as extra closed rings in l.h, alongside the outer shoreline in l.r. One
+       beginPath() per lake traces the outer ring plus every hole ring, then a single
+       fill('evenodd') punches the holes out regardless of each ring's original winding
+       order - evenodd only cares about ring COUNT at a point (odd = filled, even =
+       hole), not direction, so no winding-order bookkeeping is needed here or in the
+       pipeline that produced l.h. stroke() after the same path draws the shoreline
+       outline on both the outer coast and every island's own coast, which is exactly
+       the look a real map has - not a separate pass, just a side effect worth knowing
+       about if the island outlines ever need a different stroke than the lake itself.*/
+    P.lakes.forEach(function(l){ctx.beginPath();poly(l.r,true);
+      (l.h||[]).forEach(function(h){poly(h,true);});
+      ctx.fill('evenodd');ctx.stroke();});
     ctx.restore();}
 
     /* Lake name labels, added 2026-09-12 - same halo-background text technique the
