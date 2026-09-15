@@ -109,6 +109,11 @@ CHECKS = [
     ("Lake & Soil CPS point-marker rendering", r"(ctx\.shadowColor='rgba\(45,212,191,\.65\)';[\s\S]*?ctx\.restore\(\);\})"),
     ("Boulder CPS layer label", r"\{k:'heat',\s*label:'(Boulder CPS)'"),
     ("Lake & Soil CPS layer label", r"\{k:'geochem',label:'(Lake & Soil CPS)'"),
+    ("Lapsing Within 7 Days glow+widened stroke",
+                         r"(ctx\.shadowColor='rgba\(255,20,147,\.85\)';ctx\.shadowBlur=6;\n\s*"
+                         r"ctx\.lineWidth=Math\.max\(1\.5,Math\.min\(3\.4,view\.s\*\.0132\*1\.7\)\);ctx\.stroke\(\);)"),
+    ("Lapsing 8-14 Days glow",
+                         r"(ctx\.shadowColor='rgba\(255,133,194,\.7\)';ctx\.shadowBlur=3;)"),
 ]
 
 
