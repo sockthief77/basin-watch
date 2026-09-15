@@ -105,6 +105,10 @@ CHECKS = [
                          r"\{r:projRing\(cr,false\)\.r,h:hs,n:l\.n,a:l\.a\}\); \}\);)"),
     ("Historical-indicator slider percentile mapping (percPos2Val)",
                          r"(function percPos2Val\(pos,sorted\)\{[\s\S]*?return sorted\[idx\];\})"),
+    ("Boulder CPS point-marker rendering", r"(ctx\.shadowColor='rgba\(230,180,10,\.65\)';[\s\S]*?ctx\.restore\(\);\})"),
+    ("Lake & Soil CPS point-marker rendering", r"(ctx\.shadowColor='rgba\(45,212,191,\.65\)';[\s\S]*?ctx\.restore\(\);\})"),
+    ("Boulder CPS layer label", r"\{k:'heat',\s*label:'(Boulder CPS)'"),
+    ("Lake & Soil CPS layer label", r"\{k:'geochem',label:'(Lake & Soil CPS)'"),
 ]
 
 

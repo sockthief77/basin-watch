@@ -1227,8 +1227,8 @@ var LAYERS=[
     translucent white so a slightly muted grey here still reads as "the same thing". */
  {k:'restricted',label:'Verboten',color:'#c7c9c2', get:function(){return P.restricted.length;}},
  {k:'smdi',  label:'SMDI Grade', color:'#38BDF8', get:function(){return P.smdi.length;}},
- {k:'heat',  label:'Boulder Heat',  color:'#e6b40a', get:function(){return P.heat.length;}},
- {k:'geochem',label:'Lake & Soil Heat', color:'#2dd4bf', get:function(){return P.geochem.length;}}
+ {k:'heat',  label:'Boulder CPS',  color:'#e6b40a', get:function(){return P.heat.length;}},
+ {k:'geochem',label:'Lake & Soil CPS', color:'#2dd4bf', get:function(){return P.geochem.length;}}
 ];
 /* Heat-style layers (density/interpolated surfaces rather than discrete features)
    split into their own box below the main toggles, 2026-09-09 night, per explicit
@@ -1421,38 +1421,40 @@ function draw(){
       ctx.globalAlpha=.8;ctx.fillText(Math.round(Nt/1000)+'N',sx(labelPt2),sy(labelPt2)-3);ctx.globalAlpha=.45; } }
   ctx.restore();
 
-  if(ON.heat&&P.heat.length){ctx.save();ctx.globalCompositeOperation='multiply';
-    var cell=Math.max(5,0.04*view.s*4.2);
+  /* Boulder CPS - switched from a radial-gradient heat blob to discrete point markers,
+     2026-09-15, matching SMDI Grade's own marker style (same fixed 3.4px radius, same
+     glow technique, same surf-coloured stroke) rather than the multiply-blended glow
+     used before. Reasoning (user-reported, correct): this data isn't a continuous
+     field like temperature - it's discrete sample sites, unevenly distributed across
+     the basin, and a heat-blob surface visually implies smooth coverage between
+     samples that was never actually measured. A point per real grid cell reads
+     honestly as "here's where a reading was taken," the same way SMDI already does.
+     Colour and general intensity encoding (count + peak value blended into i, same
+     formula as before) are kept, just mapped onto marker opacity (0.4-0.9, matching
+     SMDI's own dim/bright convention) instead of blob alpha. */
+  if(ON.heat&&P.heat.length){ctx.save();
+    ctx.shadowColor='rgba(230,180,10,.65)';ctx.shadowBlur=5;
     P.heat.forEach(function(h){ if(h.mx<F.cps)return;
-      var x=sx(h.p),y=sy(h.p); if(x<-60||x>W+60||y<-60||y>H+60)return;
+      var x=sx(h.p),y=sy(h.p); if(x<-20||x>W+20||y<-20||y>H+20)return;
       var t=Math.min(1,Math.log(1+h.n)/Math.log(1+HMAXN));
       var i=Math.min(1,t*.55+Math.min(1,h.mx/(HMAXC||1))*.45);
-      var g=ctx.createRadialGradient(x,y,0,x,y,cell);
-      /* opacity raised once already (2026-09-07, was too faint); raised again
-         2026-09-07 (night) - "less transparent by another 50%": halve the
-         remaining transparency (1-alpha) rather than just scaling alpha up,
-         so the already-bright top end doesn't blow past 1 while the faint
-         low end still gets meaningfully bolder. */
-      var hAlpha=Math.min(1,.15+.93*i); hAlpha=1-(1-hAlpha)*.5;
-      g.addColorStop(0,'rgba(230,180,10,'+hAlpha.toFixed(3)+')');
-      g.addColorStop(1,'rgba(230,180,10,0)');
-      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,cell,0,6.2832);ctx.fill();});
+      ctx.beginPath();ctx.arc(x,y,3.4,0,6.2832);
+      ctx.fillStyle='rgba(230,180,10,'+(0.4+0.5*i).toFixed(3)+')';ctx.fill();
+      ctx.strokeStyle=surf;ctx.lineWidth=1.1;ctx.stroke();});
     ctx.restore();}
 
-  /* Uranium geochemistry heat (lake sediment + soil/till U) - same rendering as boulder heat
-     above, teal instead of amber so the two are never confused where they overlap. Empty
-     until basin_layers.py supplies geochem_grid - see claude/map-pipeline.md. */
-  if(ON.geochem&&P.geochem.length){ctx.save();ctx.globalCompositeOperation='multiply';
-    var gcell=Math.max(5,0.04*view.s*4.2);
+  /* Lake & Soil CPS (uranium geochemistry: lake sediment + soil/till U) - same point-
+     marker switch and reasoning as Boulder CPS above, teal instead of amber so the two
+     are never confused where they overlap. */
+  if(ON.geochem&&P.geochem.length){ctx.save();
+    ctx.shadowColor='rgba(45,212,191,.65)';ctx.shadowBlur=5;
     P.geochem.forEach(function(h){ if(h.mx<F.uppm)return;
-      var x=sx(h.p),y=sy(h.p); if(x<-60||x>W+60||y<-60||y>H+60)return;
+      var x=sx(h.p),y=sy(h.p); if(x<-20||x>W+20||y<-20||y>H+20)return;
       var t=Math.min(1,Math.log(1+h.n)/Math.log(1+GMAXN));
       var i=Math.min(1,t*.55+Math.min(1,h.mx/(GMAXC||1))*.45);
-      var g=ctx.createRadialGradient(x,y,0,x,y,gcell);
-      var hAlpha=Math.min(1,.15+.93*i); hAlpha=1-(1-hAlpha)*.5;
-      g.addColorStop(0,'rgba(45,212,191,'+hAlpha.toFixed(3)+')');
-      g.addColorStop(1,'rgba(45,212,191,0)');
-      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,gcell,0,6.2832);ctx.fill();});
+      ctx.beginPath();ctx.arc(x,y,3.4,0,6.2832);
+      ctx.fillStyle='rgba(45,212,191,'+(0.4+0.5*i).toFixed(3)+')';ctx.fill();
+      ctx.strokeStyle=surf;ctx.lineWidth=1.1;ctx.stroke();});
     ctx.restore();}
 
   if(ON.cond&&P.conds.length){ctx.save();
