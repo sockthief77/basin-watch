@@ -549,6 +549,21 @@ def main():
         # naturally drops anything too small to render, the same way it already does for
         # the main ring, so a second size-based filter here would just be redundant.
         extra = [r for r in rings if r is not best]
+        # Clip to strictly east of the real AB/SK border (see BORDER_LON above) - a
+        # no-op for the ~99% of SK lakes nowhere near the border, but Lake Athabasca's
+        # own SK-side polygon extends about half a degree WEST of the border on its own
+        # (confirmed 2026-09-15), overlapping the separately-added Alberta-side entry
+        # (section 6c below) in that strip - each side rendering its own translucent
+        # fill there doubled up the colour and, worse, doubled up island holes,
+        # producing visibly wrong results right at the seam. Mirrors the equivalent
+        # west-of-border clip already applied to Alberta lakes, just facing the other
+        # way, so the two sides tile edge-to-edge with zero overlap.
+        best = clip_ring(best, (BORDER_LON, -90.0, 180.0, 90.0))
+        if len(best) < 3:
+            continue  # this feature turned out to lie entirely on the Alberta side -
+                       # the Alberta water layer (section 6c) already covers that ground
+        extra = [clip_ring(r, (BORDER_LON, -90.0, 180.0, 90.0)) for r in extra]
+        extra = [r for r in extra if len(r) >= 3]
         lakes_ranked.append((ring_area(best), name_of(f.get("attributes", {})), best, extra))
     for f in ab_lk:
         g = f.get("geometry") or {}
@@ -624,9 +639,44 @@ def main():
             if minx <= x <= maxx and miny <= y <= maxy and point_in_ring(x, y, ring):
                 return True
         return False
-    lakes_ranked = (sorted([t for t in lakes_ranked if _is_named_river(t[1], t[2])], key=lambda t: -t[0])
-                    + sorted([t for t in lakes_ranked if not _is_named_river(t[1], t[2])], key=lambda t: -t[0]))
     LAKE_CAP = 60
+    # Real bug found 2026-09-15: the "guaranteed river slot" mechanism above used to put
+    # EVERY river-flagged candidate ahead of EVERY non-river candidate, unconditionally,
+    # then take the top LAKE_CAP of that combined order. _is_named_river()'s own
+    # "any nearby river gazetteer point falls inside this ring" test is necessarily loose
+    # (a river's mouth can sit inside a much bigger, unrelated lake's dissolved polygon
+    # without that lake BEING the river) - tested live: 95 candidates matched it against a
+    # cap of 60, the overwhelming majority big lakes that happened to enclose some
+    # tributary's mouth, not rivers at all. Because ALL 95 queue-jumped ahead of area
+    # ranking, the entire cap was consumed before a single genuine non-river lake was even
+    # considered - including the Alberta portion of Lake Athabasca (its own real area,
+    # 0.18, would rank comfortably inside a fair top 60, but never got the chance).
+    #
+    # Neither obvious tighter classifier held up under testing: the gazetteer's own
+    # HECTARES field is 0 for most real river points (Riou River, Perch River, Squirrel
+    # River, etc.), so "largest HECTARES among enclosed points" picks a nearby LAKE over
+    # the actual river almost every time - it would have broken Clearwater River, the
+    # original motivating case, while barely denting the false-positive rate. A
+    # ring-area/bounding-box "compactness" heuristic didn't cleanly separate the two
+    # groups either (confirmed lakes and confirmed rivers overlapped across the same
+    # compactness range at this generalization tier).
+    #
+    # Fix: bound the DAMAGE instead of perfecting the classifier. Rank everything by area
+    # first, exactly like every other layer here - that's the ranking real lakes are
+    # always guaranteed to win or lose on fairly. Only candidates that (a) test positive
+    # for "named river" AND (b) did NOT already make the fair area-based cut get a small,
+    # separate bonus allocation (RIVER_BONUS_CAP slots) on top. A false positive here can
+    # only ever waste one of those few bonus slots on an already-small, already-excluded
+    # lake - it can never again bump a real, big lake (Alberta's Lake Athabasca included)
+    # out of a slot it earned on its own merits.
+    RIVER_BONUS_CAP = 10
+    area_sorted = sorted(lakes_ranked, key=lambda t: -t[0])
+    top_by_area = area_sorted[:LAKE_CAP]
+    top_by_area_ids = set(id(t) for t in top_by_area)
+    river_not_in_top = [t for t in area_sorted
+                         if id(t) not in top_by_area_ids and _is_named_river(t[1], t[2])]
+    river_bonus = river_not_in_top[:RIVER_BONUS_CAP]
+    lakes_ranked = top_by_area[:max(0, LAKE_CAP - len(river_bonus))] + river_bonus
     total_holes = 0
     for a, nm, r, extra in lakes_ranked:
         if len(lb) >= LAKE_CAP:
@@ -644,6 +694,22 @@ def main():
         nm2 = nm if (nm or "").strip() else gazetteer_name(s2)
         if nm2 and not (nm or "").strip():
             named_from_gazetteer += 1
+        # Permanent overrides for a confirmed gazetteer_name() mistake (2026-09-13/14
+        # investigation): SaskNamesDatabaseWater's HECTARES field records the CONTAINING
+        # lake's area for every point geometrically inside it, not the individual named
+        # sub-feature's own area, so "largest HECTARES wins" doesn't discriminate for a
+        # big composite lake system with several named bays/sub-basins - Waterbury Lake's
+        # own ring kept resolving to "Brown Bay" and Cree Lake's to "Widdess Bay" (or
+        # "Widdness Bay" - the gazetteer's own field carries both spellings depending on
+        # which record wins the tie). No general field-based fix was found (WATER_T,
+        # L_SIZE, TOPONYMIC_, LAKEX/LAKEY proximity all tested, none cleanly discriminate)
+        # - these two are hand-verified against the real published lake names and applied
+        # as a direct override so they don't need re-fixing by hand every time this
+        # section regenerates lakes from scratch (which is every run, including the daily
+        # automated GIS-export workflow - a data-only fix doesn't survive that; this does).
+        GAZETTEER_NAME_OVERRIDES = {"Brown Bay": "Waterbury Lake",
+                                     "Widdess Bay": "Cree Lake", "Widdness Bay": "Cree Lake"}
+        nm2 = GAZETTEER_NAME_OVERRIDES.get(nm2, nm2)
         # Holes (islands) - simplified and self-intersection-checked the same way as the
         # main ring, just skipped individually rather than disqualifying the whole lake.
         # Rendered with an even-odd fill rule client-side (see map-pipeline.md "lake
