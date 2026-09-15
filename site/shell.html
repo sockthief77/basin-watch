@@ -103,7 +103,7 @@ h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
    title text instead of beside it. Using a plain inline flex layout here instead - robust
    at any container width, wraps to its own line via h2.sec's existing flex-wrap if the
    row runs out of room, never overlaps. */
-h2.sec .lggroup{display:flex;align-items:center;gap:14px}
+h2.sec .lggroup{flex:0 0 100%;display:flex;justify-content:center;align-items:center;gap:14px;margin-top:4px}
 .seclead{color:var(--muted);font-size:13.5px;margin:0 0 16px;max-width:70ch}
 
 /* news */
