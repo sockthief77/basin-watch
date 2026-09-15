@@ -43,13 +43,37 @@ jobs:
         run: python scripts/merge_map_bundle.py
 
       - name: Commit and push if anything changed
+        # Retries on a rejected push (added 2026-09-16, after a real collision with a
+        # same-day interactive session pushing straight to main): the old version did
+        # a bare `git push` with no fallback, so a same-day push to main from anywhere
+        # else silently dropped that day's whole refresh - basin_layers.py and the merge
+        # both succeed, the commit is made, and it just never leaves the runner. Each
+        # retry re-fetches the new main, re-merges gis/exports/map_bundle.json (still on
+        # disk from the earlier step - gitignored, so untouched by the git resets below)
+        # on top of it, and recommits - safe because merge_map_bundle.py's own job is
+        # exactly "fold this fresh export into whatever data/bundle.json currently is."
         run: |
           git config user.name "basin-watch-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/bundle.json gis/exports/ab_state.json gis/exports/lapsed_state.json gis/exports/smdi_grade_cache.json
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
+          for attempt in 1 2 3 4 5; do
+            git add data/bundle.json gis/exports/ab_state.json gis/exports/lapsed_state.json gis/exports/smdi_grade_cache.json
+            if git diff --cached --quiet; then
+              echo "No changes to commit"
+              exit 0
+            fi
             git commit -m "Daily GIS export refresh ($(date -u +%Y-%m-%d))"
-            git push
-          fi
+            if git push; then
+              echo "Pushed on attempt $attempt"
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              break
+            fi
+            echo "Push rejected (attempt $attempt/5) - main moved, re-merging onto the new tip"
+            git fetch origin main
+            git reset --hard origin/main
+            python scripts/merge_map_bundle.py
+            sleep $((attempt * 10))
+          done
+          echo "::error::Failed to push after 5 attempts - main kept moving"
+          exit 1
