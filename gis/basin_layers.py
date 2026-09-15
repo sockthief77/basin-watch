@@ -24,6 +24,13 @@ import json, os, sys, math, re, time, urllib.request, urllib.parse, datetime
 
 EGIS = "https://gis.saskatchewan.ca/egis/rest/services/Economy"
 ARC  = "https://gis.saskatchewan.ca/arcgis/rest/services"
+# Saskatchewan Geoscience Data System (GeoDS) - launched 2026-06-24 as SMAD's
+# announced replacement (see geoscience-data-system.saskatchewan.ca's own notice:
+# SMAD "will be phased out due to security vulnerabilities" while both systems are
+# maintained in parallel during the transition). Used only for section 14's real
+# per-record download-link lookup below - SURVEY_SRC below still pulls the actual
+# survey geometry/type/date/company from the old (still-live) SMAD service.
+GEODS = "https://geoscience-data-system.saskatchewan.ca/arcgis/rest/services"
 ALTA = "https://gis.energy.gov.ab.ca/arcgis/rest/services/wms/SREM_Metallic/MapServer"
 ALTA_WATER = "https://geospatial.alberta.ca/titan/rest/services/environment/base_water_feature/MapServer"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1277,6 +1284,38 @@ def main():
     SURVEY_SRC = [("ug", f"{MAFI}/1"), ("ground", f"{MAFI}/2"), ("air", f"{MAFI}/3")]
     SURVEY_WORK_MAXLEN = 160
     SURVEY_MIN_YEAR = 1990
+
+    # Real per-record download links, added 2026-09-15 - GeoDS's own consolidated
+    # "Mineral Assessment Data" layer (province-wide, no ug/ground/air split, so not a
+    # replacement for SURVEY_SRC's geometry/type above) carries a genuine
+    # ASSMNT_DWNLD_LNK per file - a real, working link straight to that file's actual
+    # document folder (confirmed by hand: a real "Download Confirmation" page naming
+    # the exact file number and its size). SMAD itself has no such link and its public
+    # search tool is a same-page postback form with no shareable per-record URL (see
+    # the file-number-search fallback below) - this is the one dataset in the
+    # migration that actually closes that gap, so it's worth a second query even
+    # though the geometry/type still has to come from SMAD's own service above.
+    # Matched by file number only: GeoDS's numbering doesn't line up 1:1 with SMAD's
+    # for every historical record (~65% match rate observed 2026-09-15, consistent
+    # with GeoDS's own migration notice that "both systems... may have slight
+    # discrepancies") - unmatched records simply get no "u" field rather than a
+    # guessed one, and the site falls back to linking GeoDS's own assessment-work
+    # page for those. Fetched once, province-wide (11,370 records, no geometry) since
+    # querying by individual file number 2,745 times would be far slower for the same
+    # result.
+    print("GeoDS assessment-file download links (for survey click-through)")
+    geods_links = {}
+    geods_feats = q(f"{GEODS}/P_GeoDS_AssessmentPage_EM/MapServer/20", "1=1",
+                     "ASSMNT_FILE_NUM,ASSMNT_DWNLD_LNK", geometry=False,
+                     label="geods:links", page=2000)
+    for f in geods_feats:
+        a = f.get("attributes", {})
+        fn = (a.get("ASSMNT_FILE_NUM") or "").strip()
+        link = (a.get("ASSMNT_DWNLD_LNK") or "").strip()
+        if fn and link:
+            geods_links[fn] = link
+    print(f"  geods links: {len(geods_links)} file numbers with a real download link")
+
     surveys = []
     n_old = 0
     for ty, base in SURVEY_SRC:
@@ -1304,7 +1343,11 @@ def main():
             best = max(rings, key=ring_area)
             s = dp(best, 0.002)
             if len(s) > 2:
-                surveys.append({"ty": ty, "fn": fn, "d": wd, "w": w1, "co": co, "r": rnd(s, 4)})
+                rec = {"ty": ty, "fn": fn, "d": wd, "w": w1, "co": co, "r": rnd(s, 4)}
+                link = geods_links.get(fn)
+                if link:
+                    rec["u"] = link
+                surveys.append(rec)
                 n_kept += 1
         print(f"  survey:{ty}: {len(feats)} raw, {n_kept} kept")
     B["surveys"] = surveys

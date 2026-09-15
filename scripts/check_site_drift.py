@@ -127,9 +127,11 @@ CHECKS = [
     ("Survey pick integration",
                          r"(if\(ON\.survground\|\|ON\.survair\|\|ON\.survug\)\{var survOnPick=[\s\S]*?if\(inRing\(SV\.r,mx,my\)\)return\{t:'survey',o:SV\};\}\})"),
     ("Survey tooltip content",
-                         r"(else if\(h\.t==='survey'\)\{var svLab=[\s\S]*?click to search the Mineral Assessment Database'\+\(o\.fn\?' for '\+esc\(o\.fn\):''\)\+'</div>';\})"),
+                         r"(else if\(h\.t==='survey'\)\{var svLab=[\s\S]*?and search for '\+esc\(o\.fn\):''\)\+'</div>'\);\})"),
     ("Survey click-to-source-link handler",
-                         r"(if\(h\.t==='survey'\)\{\n[\s\S]*?openLink\('http://mineral-assessment\.saskatchewan\.ca/Pages/BasePages/Main\.aspx\?UseCase=ExternalSearch'\);\n\s*return;\n\s*\})"),
+                         r"(if\(h\.t==='survey'\)\{\n[\s\S]*?if\(h\.o\.u\)\{ openLink\(h\.o\.u\); return; \}\n"
+                         r"\s*openLink\('https://geoscience-data-system\.saskatchewan\.ca/portal/apps/experiencebuilder/"
+                         r"experience/\?id=b9ada8a933ee4e229f426a3d79480b8b&page=page_15'\);\n\s*return;\n\s*\})"),
     ("Tiny-claim halo helper", r"(function tinyClaimHalo\(r,rgba\)\{[\s\S]*?\n\})"),
     ("Hovered survey highlight rendering",
                          r"(if\(hoverSurvey&&visb\(hoverSurvey\.b\)&&\n\s*\{ground:ON\.survground,air:ON\.survair,ug:ON\.survug\}\[hoverSurvey\.ty\]\)\{ctx\.save\(\);[\s\S]*?ctx\.restore\(\);\})"),
@@ -137,6 +139,8 @@ CHECKS = [
                          r"(var hs=\(h&&h\.t==='survey'\)\?h\.o:null;\n\s*if\(hs!==hoverSurvey\)\{hoverSurvey=hs;draw\(\);\})"),
     ("Hovered survey cleared on pointerleave",
                          r"(if\(hoverSurvey\)\{hoverSurvey=null;draw\(\);\}\}\);)"),
+    ("Survey data-prep includes GeoDS download link",
+                         r"(P\.surveys\.push\(\{r:pr\.r,b:pr\.b,ty:s\.ty,fn:s\.fn\|\|'',d:s\.d\|\|'',w:s\.w\|\|'',co:s\.co\|\|'',u:s\.u\|\|''\}\); \}\);)"),
 ]
 
 

@@ -1127,7 +1127,7 @@ CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
    Tenure above, so it doesn't stretch the default auto-fit view. */
 (B.surveys||[]).forEach(function(s){ if(!ringNorthOK(s.r))return;
   var pr=projRing(s.r,false);
-  P.surveys.push({r:pr.r,b:pr.b,ty:s.ty,fn:s.fn||'',d:s.d||'',w:s.w||'',co:s.co||''}); });
+  P.surveys.push({r:pr.r,b:pr.b,ty:s.ty,fn:s.fn||'',d:s.d||'',w:s.w||'',co:s.co||'',u:s.u||''}); });
 (B.boulder_grid||[]).forEach(function(g){ if(!northOK(g.x,g.y))return; var p=PROJ(g.x,g.y); ext(p);
   P.heat.push({p:p,n:g.n,mx:g.mx,av:g.av}); });
 /* Uranium geochemistry heat (lake-sediment + soil/till U, ppm) - added 2026-09-08, shape
@@ -1986,7 +1986,8 @@ function showTip(h,mx,my){
   else if(h.t==='survey'){var svLab={ug:'Underground survey',ground:'Ground survey',air:'Airborne survey'}[o.ty]||o.ty;
     s='<b>'+svLab+(o.fn?' &middot; '+esc(o.fn):'')+'</b>'+(o.d?row('Year',esc(o.d)):'')+
       (o.co?row('Company',esc(o.co)):'')+(o.w?'<div class="hint">'+esc(o.w)+'</div>':'')+
-      '<div class="hint">click to search the Mineral Assessment Database'+(o.fn?' for '+esc(o.fn):'')+'</div>';}
+      (o.u?'<div class="hint">click to download this assessment file</div>':
+           '<div class="hint">click to open the Geoscience Data System'+(o.fn?' and search for '+esc(o.fn):'')+'</div>');}
   else if(h.t==='mine')s='<b>'+esc(o.n)+'</b>'+(o.st?row('Status',o.st):'')+
     row('Type',o.ml?'mill':'mine')+(o.u?row('Commodity','uranium'):'');
   else if(h.t==='place')s='<b>'+esc(o.n)+'</b>'+row('Type',o.k)+
@@ -2128,16 +2129,22 @@ cv.addEventListener('pointerup',function(e){try{
     return;
   }
   if(h.t==='survey'){
-    /* No per-record deep link exists for this dataset (unlike SMDI's own WEBLINK
-       field/Viewdetails URL) - confirmed 2026-09-15: the Mineral Assessment File
-       Information service carries no URL field, and the real public lookup tool
-       (mineral-assessment.saskatchewan.ca's "External Search") is an old ASP.NET
-       WebForms page with no queryable/shareable per-record URL, only a same-page
-       postback search form. Opens that real search tool instead of fabricating a
-       URL that doesn't exist - the file number is already shown in the tooltip's
-       bold title line (see the survey tooltip block below) for pasting into its
-       File Number field. */
-    openLink('http://mineral-assessment.saskatchewan.ca/Pages/BasePages/Main.aspx?UseCase=ExternalSearch');
+    /* Saskatchewan's own SMAD (the source this layer's geometry/type/date/company
+       come from) has no per-record URL of its own - its public search tool is an old
+       ASP.NET WebForms page, postback-only, no shareable per-record link. GeoDS (its
+       announced replacement, launched 2026-06-24 - SMAD "will be phased out due to
+       security vulnerabilities" per GeoDS's own notice) DOES carry a real per-record
+       download link for most files (o.u, attached server-side in basin_layers.py by
+       matching file number against GeoDS's own consolidated assessment-data layer -
+       confirmed 2026-09-15 real, e.g. resolves to an actual "Download Confirmation"
+       page naming that exact file and its size). Used when present. GeoDS and SMAD's
+       numbering doesn't line up for every historical record though (~65% match rate
+       observed), so when there's no match this opens GeoDS's own assessment-work
+       page instead of fabricating a link - the file number is already shown in the
+       tooltip's bold title line (see the survey tooltip block below) for searching
+       there by hand. */
+    if(h.o.u){ openLink(h.o.u); return; }
+    openLink('https://geoscience-data-system.saskatchewan.ca/portal/apps/experiencebuilder/experience/?id=b9ada8a933ee4e229f426a3d79480b8b&page=page_15');
     return;
   }
   }catch(err){console.error('pointerup error',err);}
