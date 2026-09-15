@@ -1243,6 +1243,95 @@ def main():
     print(f"  restricted lands bundled: {len(restricted)} polygons across all 6 MARS "
           f"categories (park/crownreserve/reserve/urban/claim/manual)")
 
+    # ---- 14. Cameco Leases (added 2026-09-15) ----
+    # The root (non-Economy) Mining/MapServer, layer 2 - Cameco is the dominant Athabasca
+    # Basin producer (majority owner of McArthur River and Key Lake, among others); this
+    # is its own leased ground specifically, distinct from the general Mineral Tenure
+    # Crown Dispositions layer everyone (including Cameco itself) stakes through. Small
+    # (17 polygons province-wide) and geometry-only - no useful attributes beyond a
+    # generic LAYER string - so this is purely a "whose ground is this" background
+    # reference, not a filterable/sortable dataset like tenure.
+    print("Cameco Leases")
+    cameco_feats = q(f"{ARC}/Mining/MapServer/2", "1=1", "OBJECTID", window=True, label="cameco")
+    cameco = []
+    for f in cameco_feats:
+        rings = (f.get("geometry") or {}).get("rings", [])
+        for r in rings:
+            s = dp(r, 0.001)
+            if len(s) > 2:
+                cameco.append({"r": rnd(s, 4)})
+    B["cameco"] = cameco
+    print(f"  Cameco Leases bundled: {len(cameco)} polygons ({len(cameco_feats)} raw features)")
+
+    # ---- 15. historical exploration surveys (added 2026-09-15) ----
+    # Economy/P_Mineral_Assessment_File_Information - Saskatchewan's Mineral Assessment
+    # File index: every historical exploration program (ground/airborne/underground) filed
+    # with the province, each polygon carrying its file number, work date, a free-text
+    # summary of the actual work done (drilling counts, sample counts, survey type), and
+    # the company/JV that did it. This is real "who explored where and when" competitor
+    # history, not currently shown anywhere on the map. Layer 0 ("Mineral Assessment File
+    # Information" itself) is a non-spatial TABLE (confirmed via its own service
+    # definition - geometryType is null, geometry queries error) - only layers 1/2/3
+    # (Underground/Ground/Airborne Surveys) carry real polygon geometry, so only those
+    # three are pulled here.
+    #
+    # WORK_1 (the free-text work summary) can run to several hundred characters for a
+    # multi-year, multi-company program - truncated to SURVEY_WORK_MAXLEN so one verbose
+    # filing doesn't blow out the bundle; COMPANY is kept in full since JV partner lists
+    # are exactly the "who" this layer exists to show. Same per-ring dp()+len>2 pattern as
+    # every other polygon layer in this file, at a coarser tolerance (0.002) than lakes -
+    # these are exploration-claim-block shapes, not coastlines, so far less detail is lost
+    # per simplified point.
+    #
+    # SURVEY_MIN_YEAR: unfiltered, this service returns 8,392 polygons in-window going
+    # back to the 1920s and adds ~3.2MB to the bundle - two-thirds of that (5,581
+    # records) predates 1990. This site is a DAILY brief about CURRENT competitive
+    # activity, not a historical archive, so pre-1990 legacy filings (mostly a
+    # different, pre-modern-uranium-boom generation of companies) carry much less of
+    # the "who is active where, right now-ish" value this layer exists to show, at full
+    # bundle-size cost. 1990 keeps the entire post-McArthur River/Cigar Lake modern
+    # exploration era (2,730 records, ~1.2MB - a 63% size cut) while dropping the
+    # oldest, least competitively-relevant third of a century of filings.
+    print("historical exploration surveys (Mineral Assessment Files)")
+    MAFI = "https://gis.saskatchewan.ca/arcgis/rest/services/Economy/P_Mineral_Assessment_File_Information/MapServer"
+    SURVEY_SRC = [("ug", f"{MAFI}/1"), ("ground", f"{MAFI}/2"), ("air", f"{MAFI}/3")]
+    SURVEY_WORK_MAXLEN = 160
+    SURVEY_MIN_YEAR = 1990
+    surveys = []
+    n_old = 0
+    for ty, base in SURVEY_SRC:
+        feats = q(base, "1=1", "FILENUMBER,WORK_DATE,WORK_1,COMPANY", window=True,
+                  label=f"survey:{ty}", page=1000)
+        n_kept = 0
+        for f in feats:
+            a = f.get("attributes", {})
+            rings = (f.get("geometry") or {}).get("rings", [])
+            if not rings:
+                continue
+            wd = (a.get("WORK_DATE") or "").strip()
+            try:
+                year = int(wd[:4]) if len(wd) >= 4 and wd[:4].isdigit() else None
+            except ValueError:
+                year = None
+            if year is not None and year < SURVEY_MIN_YEAR:
+                n_old += 1
+                continue
+            fn = (a.get("FILENUMBER") or "").strip()
+            w1 = (a.get("WORK_1") or "").strip()
+            if len(w1) > SURVEY_WORK_MAXLEN:
+                w1 = w1[:SURVEY_WORK_MAXLEN].rstrip() + "..."
+            co = (a.get("COMPANY") or "").strip()
+            best = max(rings, key=ring_area)
+            s = dp(best, 0.002)
+            if len(s) > 2:
+                surveys.append({"ty": ty, "fn": fn, "d": wd, "w": w1, "co": co, "r": rnd(s, 4)})
+                n_kept += 1
+        print(f"  survey:{ty}: {len(feats)} raw, {n_kept} kept")
+    B["surveys"] = surveys
+    print(f"  exploration surveys bundled: {len(surveys)} polygons "
+          f"({n_old} pre-{SURVEY_MIN_YEAR} filings excluded) "
+          f"(ground/airborne/underground combined)")
+
     # ---- 13. SMDI uranium occurrences (grade scraped from detail-page text) ----
     # The Mineral Deposits Index (same service section 1 uses) carries every uranium-tagged
     # SMDI record, not just named deposits with defined resources - occurrences, prospects
@@ -1353,7 +1442,7 @@ def main():
     print(f"\nmap_bundle.json  {os.path.getsize(p)/1e6:.1f} MB")
     for k in ("tenure", "claims", "deposits", "mines", "places", "highways", "footprints",
               "lakes", "boulder_grid", "geochem_grid", "conductors", "lapsed", "ab_tenure",
-              "restricted", "smdi"):
+              "restricted", "smdi", "cameco", "surveys"):
         print(f"  {k:14s} {len(B.get(k, [])):>7,}")
     print("\nDone. Tell Claude the bundle is ready.")
 

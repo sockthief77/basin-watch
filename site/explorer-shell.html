@@ -863,7 +863,7 @@ function newClaimColor(o,corp){ var h=primaryOwner(o);
   return HCOL[h]||NEWHCOL[h]||OTHER; }
 
 /* ---------- project everything ---------- */
-var P={tenure:[],claims:[],deps:[],foots:[],conds:[],heat:[],geochem:[],mines:[],places:[],hw:[],basin:[],news:[],lakes:[],lapreg:[],ab:[],restricted:[],smdi:[]};
+var P={tenure:[],claims:[],deps:[],foots:[],conds:[],heat:[],geochem:[],mines:[],places:[],hw:[],basin:[],news:[],lakes:[],lapreg:[],ab:[],restricted:[],smdi:[],cameco:[],surveys:[]};
 var minx=1e18,maxx=-1e18,miny=1e18,maxy=-1e18;
 function ext(p){if(p[0]<minx)minx=p[0];if(p[0]>maxx)maxx=p[0];if(p[1]<miny)miny=p[1];if(p[1]>maxy)maxy=p[1];}
 function projRing(r,track){var o=[],bx0=1e18,by0=1e18,bx1=-1e18,by1=-1e18;
@@ -995,6 +995,15 @@ CLAIMS_F.forEach(function(c){ var p=PROJ(c.x,c.y); ext(p);
 (B.restricted||[]).forEach(function(RL){ if(!ringNorthOK(RL.r))return;
   var pr=projRing(RL.r,false);
   P.restricted.push({r:pr.r,b:pr.b,n:RL.n||'',ty:RL.ty||''}); });
+/* Cameco Leases + historical exploration surveys, added 2026-09-15 - same
+   not-extent-tracked (projRing's second arg false) background-reference treatment as
+   Restricted/Alberta Tenure above, so neither stretches the default auto-fit view. */
+(B.cameco||[]).forEach(function(c){ if(!ringNorthOK(c.r))return;
+  var pr=projRing(c.r,false);
+  P.cameco.push({r:pr.r,b:pr.b}); });
+(B.surveys||[]).forEach(function(s){ if(!ringNorthOK(s.r))return;
+  var pr=projRing(s.r,false);
+  P.surveys.push({r:pr.r,b:pr.b,ty:s.ty,fn:s.fn||'',d:s.d||'',w:s.w||'',co:s.co||''}); });
 (B.boulder_grid||[]).forEach(function(g){ if(!northOK(g.x,g.y))return; var p=PROJ(g.x,g.y); ext(p);
   P.heat.push({p:p,n:g.n,mx:g.mx,av:g.av}); });
 (B.geochem_grid||[]).forEach(function(g){ if(!northOK(g.x,g.y))return; var p=PROJ(g.x,g.y); ext(p);
@@ -1095,6 +1104,13 @@ var LAYERS=[
     in this list (both crisp white); the map's own restricted-lands fill is already a
     translucent white so a slightly muted grey here still reads as "the same thing". */
  {k:'restricted',label:'Verboten',color:'#c7c9c2', get:function(){return P.restricted.length;}},
+ {k:'cameco',label:'Cameco Leases',color:'#00AEEF', get:function(){return P.cameco.length;}},
+ {k:'survug',label:'Underground Surveys',color:'#8A8A8A',
+   get:function(){return P.surveys.filter(function(s){return s.ty==='ug';}).length;}},
+ {k:'survground',label:'Ground Surveys',color:'#C9A66B',
+   get:function(){return P.surveys.filter(function(s){return s.ty==='ground';}).length;}},
+ {k:'survair',label:'Airborne Surveys',color:'#8FA8D9',
+   get:function(){return P.surveys.filter(function(s){return s.ty==='air';}).length;}},
  {k:'smdi',  label:'SMDI Grade', color:'#38BDF8', get:function(){return P.smdi.length;}},
  {k:'heat',  label:'Boulder CPS',  color:'#e6b40a', get:function(){return P.heat.length;}},
  {k:'geochem',label:'Lake & Soil CPS', color:'#2dd4bf', get:function(){return P.geochem.length;}}
@@ -1116,6 +1132,10 @@ ON.geochem=false;
    toggles on when checking whether ground is available to stake, same reasoning as
    Sask/Alberta Tenure. Toggle it on any time from the layer bar. */
 ON.restricted=false;
+ON.cameco=false;
+ON.survug=false;
+ON.survground=false;
+ON.survair=false;
 /* Lapsed Claims off by default, added 2026-09-09 - the full lapsed-disposition register
    (hundreds of records), distinct from Recently Lapsed (which only shows new-since-
    last-export deltas). A separate toggle was requested for this after finding a claim
@@ -1386,6 +1406,23 @@ function draw(){
       ctx.fillStyle='rgba(255,255,255,.64)';ctx.fill();
       ctx.strokeStyle='rgba(255,255,255,.85)';
       ctx.lineWidth=Math.max(1,Math.min(2.4,view.s*.016));ctx.stroke();});
+    ctx.restore();}
+
+  if(ON.cameco&&P.cameco.length){ctx.save();
+    ctx.strokeStyle='rgba(0,174,239,.9)';
+    ctx.lineWidth=Math.max(1.2,Math.min(2.6,view.s*.016));
+    ctx.setLineDash([Math.max(5,view.s*.04),Math.max(3,view.s*.03)]);
+    P.cameco.forEach(function(c){ if(!visb(c.b))return; ctx.beginPath();poly(c.r,true);ctx.stroke();});
+    ctx.setLineDash([]);
+    ctx.restore();}
+
+  if((ON.survground||ON.survair||ON.survug)&&P.surveys.length){ctx.save();
+    var survOn={ground:ON.survground,air:ON.survair,ug:ON.survug};
+    var survColor={ground:'rgba(201,166,107,.8)',air:'rgba(143,168,217,.8)',ug:'rgba(138,138,138,.8)'};
+    ctx.lineWidth=Math.max(.7,Math.min(1.6,view.s*.01));
+    P.surveys.forEach(function(s){ if(!survOn[s.ty]||!visb(s.b))return;
+      ctx.strokeStyle=survColor[s.ty];
+      ctx.beginPath();poly(s.r,true);ctx.stroke();});
     ctx.restore();}
 
   if(ON.hw&&P.hw.length){ctx.save();ctx.strokeStyle=tok('--hwline','rgba(255,255,255,.9)');
@@ -1729,6 +1766,13 @@ function pick(mx,my){
   if(ON.restricted){for(var jr=0;jr<P.restricted.length;jr++){var R=P.restricted[jr];
     if(!visb(R.b))continue;
     if(inRing(R.r,mx,my))return{t:'restricted',o:R};}}
+  if(ON.cameco){for(var jcm=0;jcm<P.cameco.length;jcm++){var CL=P.cameco[jcm];
+    if(!visb(CL.b))continue;
+    if(inRing(CL.r,mx,my))return{t:'cameco',o:CL};}}
+  if(ON.survground||ON.survair||ON.survug){var survOnPick={ground:ON.survground,air:ON.survair,ug:ON.survug};
+    for(var jsv=0;jsv<P.surveys.length;jsv++){var SV=P.surveys[jsv];
+      if(!survOnPick[SV.ty]||!visb(SV.b))continue;
+      if(inRing(SV.r,mx,my))return{t:'survey',o:SV};}}
   if(ON.heat){P.heat.forEach(function(h){if(h.mx>=F.cps)pt(h.p,function(){return{t:'heat',o:h};});});if(best)return best;}
   if(ON.geochem){P.geochem.forEach(function(h){if(h.mx>=F.uppm)pt(h.p,function(){return{t:'geochem',o:h};});});if(best)return best;}
   if(ON.cond&&view.s>home.s*1.6){var bl=10*10,bc=null;
@@ -1777,6 +1821,10 @@ function showTip(h,mx,my){
   else if(h.t==='restricted'){var rty={park:'Park / protected area',reserve:'Indian reserve',
     claim:'Land claim selection',urban:'Urban municipality'}[o.ty]||o.ty;
     s='<b>'+esc(o.n)+'</b>'+row('Type',rty)+'<div class="hint">Unavailable for staking (MARS restriction)</div>';}
+  else if(h.t==='cameco')s='<b>Cameco Leases</b><div class="hint">Cameco-held ground (majority owner of McArthur River, Key Lake and others)</div>';
+  else if(h.t==='survey'){var svLab={ug:'Underground survey',ground:'Ground survey',air:'Airborne survey'}[o.ty]||o.ty;
+    s='<b>'+svLab+(o.fn?' &middot; '+esc(o.fn):'')+'</b>'+(o.d?row('Year',esc(o.d)):'')+
+      (o.co?row('Company',esc(o.co)):'')+(o.w?'<div class="hint">'+esc(o.w)+'</div>':'');}
   else if(h.t==='mine')s='<b>'+esc(o.n)+'</b>'+(o.st?row('Status',o.st):'')+
     row('Type',o.ml?'mill':'mine')+(o.u?row('Commodity','uranium'):'');
   else if(h.t==='place')s='<b>'+esc(o.n)+'</b>'+row('Type',o.k)+
@@ -2013,7 +2061,10 @@ LYRGROUPS.forEach(function(g,gi){
    bar above, in Geology's old spot), added 2026-09-15. */
 var geolHd=document.createElement('div');geolHd.className='lyrgrouphd';
 geolHd.textContent='Geology';heatBar.appendChild(geolHd);
-['dep','foot','mine','cond'].forEach(function(k){var l=LYRBYKEY[k];if(l)mkLyrToggle(l,heatBar);});
+['dep','foot','mine','cond','cameco'].forEach(function(k){var l=LYRBYKEY[k];if(l)mkLyrToggle(l,heatBar);});
+var explHd=document.createElement('div');explHd.className='lyrgrouphd rule';
+explHd.textContent='Exploration History';heatBar.appendChild(explHd);
+['survground','survair','survug'].forEach(function(k){var l=LYRBYKEY[k];if(l)mkLyrToggle(l,heatBar);});
 /* Historical Indicators (SMDI Grade / Boulder Heat / Lake & Soil Heat - density/heat
    surfaces of historical grade and geochemical signal, not current mapped features)
    moved to the right-hand reference panel 2026-09-15, in the "News Release" legend's
