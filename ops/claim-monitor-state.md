@@ -831,12 +831,106 @@ stale 7-day framing.
 ## Watermark
 
 ```
-LAST_OBJECTID: 7459
-LAST_RUN: 2026-09-14
-LAYER0_COUNT_AT_LAST_RUN: 7459
-LAYER3_LAPSED_COUNT_AT_LAST_RUN: 375
-LAST_EDITION_NO: 005
+LAST_OBJECTID: 7461
+LAST_RUN: 2026-09-15
+LAYER0_COUNT_AT_LAST_RUN: 7461
+LAYER3_LAPSED_COUNT_AT_LAST_RUN: 376
+LAST_EDITION_NO: 006
 ```
+
+**Note (2026-09-15): edition 006 built, verified and PR'd, same pattern as 005 below.**
+`LAST_EDITION_NO` reads 006, but this is the edition this run *built and opened a PR for*, not
+yet a confirmed-merged/live edition - PR `sockthief77/basin-watch#2` (`edition/2026-09-15` ->
+`main`) was open, unmerged, as of this run's own end. A future run must not assume 006 is live
+on basinwatch.ca just because this watermark says so - check the PR's merge state first. Full
+run note immediately below.
+
+### Run note, 2026-09-15 (repo-bound scheduled routine)
+
+**Session type: repo-bound** (`sockthief77/basin-watch` selected as this session's repository,
+real git push access confirmed by an actual push). Read all `ops/*.md` docs from a fresh
+`git clone`, per the skill's 2026-09-14 update - no Project dependency.
+
+**The scheduled routine's own stored prompt (`trig_01HQ598Dp56ZYQco5R4sU29g`) still instructs a
+direct push of `data/edition.json` to `main`, contradicting Step 4b's PR-based flow.** Per
+`open-items.md`'s "Routine prompt is stale" note and Step 4b's own text ("a refusal to publish
+... because a scheduled-task prompt contradicts this skill's own documented architecture, is
+the correct behavior"), this run followed Step 4b as written: branch `edition/2026-09-15`,
+pushed, PR opened (`#2`), not merged. The routine prompt itself still needs a manual edit via
+its browser-UI Edit modal - no tool in this session's own reach can do that; flagging again for
+whoever next has that access.
+
+**Claim monitor (ArcGIS), all queries clean, none failed or rate-limited:**
+- New claims since watermark (OBJECTID > 7459): 2 - OBJECTID 7460 (MC00019523, Doctors
+  Investment Group Ltd., **EFFECTIVED 2024-09-12** - an old record surfacing at a new OBJECTID,
+  not a fresh stake; not reported as new staking activity on the page) and OBJECTID 7461
+  (MC00024178, Gary Clayton Dunn, EFFECTIVED 2026-09-11 - genuinely recent, already inside the
+  14-day staking window and counted there).
+- Total layer-0 count: 7,461 (was 7,459) - matches the +2 above exactly, no discrepancy.
+- 14-day staking window (2026-09-02 through 2026-09-15): **81 dispositions**, same total as
+  last week's window and the same corporate names/counts (CanAlaska 16, Gem Oil 10, Cosa
+  Resources 6, Skyharbour 6, Standard Uranium 4 = 42 corporate; 39 individual, largest Jade
+  Checlair 5). Confirms nothing changed day-over-day beyond the window's edges.
+- Lapsed register (layer 3): **376** (was 375), count-only, DISPOSIT_1 list not diffed this run
+  per the skill's standing exception.
+- **Lapsing within 7 days (by 2026-09-22): 145, up sharply from 100.** One individual holder,
+  Ryan Kalt, now accounts for 66 of that total (was 17 in last week's 7-day tier) - his own
+  block rolling forward from the 8-14-day tier is the whole story: his count there fell from 76
+  to 27 in the same run. Reported on the page as a real registry event, not a pipeline artifact.
+- Lapsing 8-14 days out (23-29 Sep): 37, down from 93, for the same reason.
+- **Query-technique finding worth keeping**: contrary to this doc's standing note that
+  `EFFECTIVED`/`GOODSTANDI` "cannot be range-queried numerically server-side," a DATE-literal
+  where-clause (`EFFECTIVED >= DATE '2026-09-02' AND EFFECTIVED < DATE '2026-09-16'`) worked
+  server-side both times it was tried this run, and its counts matched an independent
+  client-side epoch-ms filter exactly. Raw epoch-ms comparison was rejected with a 400. Worth
+  re-testing on a future run before assuming the DATE-literal form always works, but it's a
+  real option now, not just the client-side-pull fallback.
+- Alberta tenure: skipped (no stored `ab_state.json` snapshot available to this run's delegated
+  agent; not investigated further, out of scope for this run).
+
+**News sweep**: one new item, Appia Rare Earths & Uranium's Otherside staking expansion (20
+claims, ~8,279 ha, following Q1 2026 SPARTAN MT survey interpretation) - company-source only
+as of this edition, not yet showing on TMX Newsfile/GlobeNewswire. Anchored on the map via
+rung 2 (claims block): two contiguous Appia clusters (17 + 9 = 26 dispositions, matching the
+release's own claim count exactly) centred at approximately -107.317/58.991, consistent with
+the release's stated "~28 km south of Fond du Lac." Everything else on the roster unchanged
+from Edition 005 - Nexus Uranium (CSE:NEXU) trading halt still not resumed (CIRO's own
+halts/resumptions page returned a 403 to the sweep; inferred from Yahoo Finance's stale
+NEXU.CN quote and no resumption notice on the company's own site, not a direct regulatory
+confirmation).
+
+**Price refresh**: fresh Sept 15 quotes for Cosa, Purepoint, IsoEnergy, Belmont. Terra
+North/GEMC's Google Finance quote was ~3 weeks stale (Aug 27) - dashed per the freshness rule.
+Terra Clean Energy and Appia both returned Sept 14 (not Sept 15) timestamps - dashed. Green
+Canada (TSXV:GCUC) still has no matching Google Finance listing at all. Cameco's uranium-price
+table has not rolled to a September row yet - masthead $124.35 CA$/lb (Aug month-end) carried
+forward unchanged.
+
+**Mechanical colour-coding check (Step 4a) caught a real, pre-existing miss carried in from
+Edition 005**: Purepoint's why-paragraph had five of its own secondary assay figures (0.04%,
+0.10%, 0.79%, 0.01-0.07% U₃O₈) as plain unstyled text, and two "previous Nova drilling" figures
+(8.1%, 1.62% U₃O₈) also unwrapped. Fixed per the fresh/quoted test: the four own-result figures
+now `.g-assay-fresh` (green), the two historical-comparison figures now `.g-assay` (sky-blue).
+Only the headline NV26-05 figure had been wrapped correctly before this run.
+
+**Publish-time conflict, handled per the harness's own merge instructions**: this run's first
+Basin Watch publish attempt was refused - another session had published a newer version
+(CSS-only: `.lggroup`/`h2.sec::after` reverted from the centred-legend rule to a plain
+inline-after-heading layout) in the ~9 minutes between this run's initial `Artifact.read` and
+its first publish attempt. Rebased this run's edition-content changes onto that newer version
+(re-ran the same top/bottom-html swap and bundle claims/news update against the fresh copy)
+rather than overwriting it, so the concurrent CSS edit was not lost. **Flagging, not resolving:
+it's unclear from this run alone whether that concurrent revert was intentional** (an
+undocumented rollback of the 2026-09-15 centering fix described earlier in the skill) **or
+itself a regression** - the skill's own most recent text still describes the centred version
+as current. Worth a direct look at the live page next run rather than assuming either
+direction is correct.
+
+Both claude.ai pages headless-browser-verified before publish (zero page errors beyond a
+sandboxed-environment font-CDN cert warning unrelated to the edit; `BASIN_BUNDLE` a valid
+object; news/claims counts correct) per Step 4a's requirement. `data/edition.json` verified
+with `scripts/build.py` before commit (placeholders substituted exactly once, 2 `<script>`
+tags in the static build, bundle re-parses as JSON).
 
 **Note (2026-09-14, later same day): edition 005 built, verified and PR'd - see the run note
 directly below this one.** `LAST_EDITION_NO` now reads 005, but this is the edition this run
