@@ -289,6 +289,19 @@ def main():
         nm = name_of(f.get("attributes", {}))
         if nm and not any(p["n"].upper() == nm.upper() for p in places):
             places.append({"x": round(g["x"], 4), "y": round(g["y"], 4), "n": nm, "k": "Airstrip"})
+    # Alberta settlements, added 2026-09-15 - this layer's own UrbanAreas query only
+    # ever covers Saskatchewan, by construction (a Saskatchewan GeoHub service), so any
+    # named Alberta community (Fort Chipewyan, at the west end of Lake Athabasca) is
+    # invisible here no matter how the window/bbox is set. See
+    # gis/supplementary/alberta_places.json's own "_source" field for exactly where each
+    # entry's coordinate came from - resolved place lookups, not this pipeline's own
+    # ArcGIS queries, since no equivalent Alberta settlement service is wired in yet.
+    supp_places_path = os.path.join(HERE, "supplementary", "alberta_places.json")
+    if os.path.exists(supp_places_path):
+        with open(supp_places_path) as f:
+            supp_places = json.load(f)
+        places += supp_places.get("places", [])
+        print(f"  + {len(supp_places.get('places', []))} supplementary Alberta place(s)")
     B["places"] = places
     print(f"  places bundled: {len(places)}")
 

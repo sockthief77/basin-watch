@@ -1,0 +1,7 @@
+{
+  "_source": "Google Maps place lookup, 2026-09-15 - resolved from a user-provided maps.app.goo.gl share link to https://www.google.com/maps/place/Fort+Chipewyan,+AB+T0P+1B0/... with an explicit POI coordinate (!3d58.7133284!4d-111.1574916). Not from any ArcGIS service - the daily pipeline's 'places' layer only ever queries Saskatchewan's own UrbanAreas/MapServer, which has zero Alberta coverage by construction. This file exists specifically to fill that gap for named Alberta settlements the map needs to show.",
+  "_note": "'k' uses 'Hamlet' to match Fort Chipewyan's actual Alberta municipal designation (an unincorporated hamlet within the Regional Municipality of Wood Buffalo) - also happens to already be one of the Saskatchewan-side category values this layer uses, so no new category/legend entry is needed.",
+  "places": [
+    {"x": -111.1574916, "y": 58.7133284, "n": "Fort Chipewyan", "k": "Hamlet"}
+  ]
+}
