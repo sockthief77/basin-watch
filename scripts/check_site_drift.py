@@ -130,6 +130,12 @@ CHECKS = [
     ("Survey click-to-source-link handler",
                          r"(if\(h\.t==='survey'\)\{\n[\s\S]*?openLink\('http://mineral-assessment\.saskatchewan\.ca/Pages/BasePages/Main\.aspx\?UseCase=ExternalSearch'\);\n\s*return;\n\s*\})"),
     ("Tiny-claim halo helper", r"(function tinyClaimHalo\(r,rgba\)\{[\s\S]*?\n\})"),
+    ("Hovered survey highlight rendering",
+                         r"(if\(hoverSurvey&&visb\(hoverSurvey\.b\)&&\n\s*\{ground:ON\.survground,air:ON\.survair,ug:ON\.survug\}\[hoverSurvey\.ty\]\)\{ctx\.save\(\);[\s\S]*?ctx\.restore\(\);\})"),
+    ("Hovered survey pointermove tracking",
+                         r"(var hs=\(h&&h\.t==='survey'\)\?h\.o:null;\n\s*if\(hs!==hoverSurvey\)\{hoverSurvey=hs;draw\(\);\})"),
+    ("Hovered survey cleared on pointerleave",
+                         r"(if\(hoverSurvey\)\{hoverSurvey=null;draw\(\);\}\}\);)"),
 ]
 
 

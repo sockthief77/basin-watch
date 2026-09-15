@@ -1577,6 +1577,17 @@ function draw(){
       ctx.beginPath();poly(s.r,true);ctx.stroke();});
     ctx.restore();}
 
+  /* Hovered survey highlight, added 2026-09-15 - drawn last (on top of every other
+     survey polygon) in bright white with a glow so it reads clearly against the dense
+     overlapping mass above, whatever colour the polygons underneath happen to be. */
+  if(hoverSurvey&&visb(hoverSurvey.b)&&
+     {ground:ON.survground,air:ON.survair,ug:ON.survug}[hoverSurvey.ty]){ctx.save();
+    ctx.shadowColor='rgba(255,255,255,.9)';ctx.shadowBlur=8;
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=Math.max(2,Math.min(3.6,view.s*.022));
+    ctx.beginPath();poly(hoverSurvey.r,true);ctx.stroke();
+    ctx.restore();}
+
   if(ON.hw&&P.hw.length){ctx.save();ctx.strokeStyle=tok('--hwline','rgba(255,255,255,.9)');
     ctx.lineWidth=Math.max(1,Math.min(2.6,view.s*.02));ctx.lineJoin='round';
     ctx.setLineDash([Math.max(4,view.s*.05),Math.max(3,view.s*.035)]);ctx.beginPath();
@@ -1999,6 +2010,13 @@ function showTip(h,mx,my){
 
 /* ---------- events ---------- */
 var drag=null,MS={on:false,pts:[],hover:null},mapActive=false;
+/* Hovered survey polygon, added 2026-09-15 - with 2,745 historical survey polygons
+   heavily overlapping (see the render comment above), the tooltip alone doesn't say
+   which one of the several polygons under the cursor it's actually describing. Tracked
+   separately from the tooltip's own hit (which fires for every feature type) since only
+   surveys are dense/overlapping enough to need this; redrawn only on actual change, not
+   every pointermove, to avoid a full-canvas redraw on every mouse pixel. */
+var hoverSurvey=null;
 /* Click-to-interact gate, added 2026-09-12: the map used to hijack every wheel
    scroll that merely passed over it (zooming instead of letting the page scroll
    past), which made it hard to just scroll down the page. Now the map stays
@@ -2059,7 +2077,10 @@ cv.addEventListener('pointermove',function(e){var q=evp(e);
     if(Math.abs(dx)>8||Math.abs(dy)>8)drag.moved=true;
     view.tx=drag.tx+dx;view.ty=drag.ty+dy;draw();return;}
   if(MS.on){if(MS.pts.length===1){MS.hover=invert(q[0],q[1]);draw();measOut();}return;}
-  var h=pick(q[0],q[1]); h?showTip(h,q[0],q[1]):(tip.hidden=true);});
+  var h=pick(q[0],q[1]);
+  var hs=(h&&h.t==='survey')?h.o:null;
+  if(hs!==hoverSurvey){hoverSurvey=hs;draw();}
+  h?showTip(h,q[0],q[1]):(tip.hidden=true);});
 function endDrag(){if(drag){drag=null;cv.classList.remove('drag');}}
 /* ROOT CAUSE FOUND 2026-09-09 (sixth pass): a raw-event probe (since removed) caught
    it - pointerup was throwing "A parameter or an operation is not supported by the
@@ -2122,7 +2143,8 @@ cv.addEventListener('pointerup',function(e){try{
   }catch(err){console.error('pointerup error',err);}
 });
 cv.addEventListener('pointercancel',endDrag);
-cv.addEventListener('pointerleave',function(){tip.hidden=true;endDrag();});
+cv.addEventListener('pointerleave',function(){tip.hidden=true;endDrag();
+  if(hoverSurvey){hoverSurvey=null;draw();}});
 cv.addEventListener('wheel',function(e){
   if(!mapActive)return; /* let the page scroll normally - see setMapActive above */
   e.preventDefault();var q=evp(e),f=Math.pow(1.0015,-e.deltaY);
