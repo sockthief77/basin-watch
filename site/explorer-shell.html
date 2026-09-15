@@ -409,6 +409,7 @@ summary.ctrlhd:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div class="tip" id="tip" hidden></div>
         <div class="scalebar"><span id="scaleLine"></span><em id="scaleTxt"></em></div>
         <div class="mapempty" id="mapempty" hidden></div>
+        <div class="mapactivate" id="mapActivateHint">Click to interact</div>
       </div>
     </div>
 
@@ -1759,7 +1760,11 @@ var drag=null,MS={on:false,pts:[],hover:null};
    permanently true; setMapActive/mapActive are kept only so the wheel handler
    below doesn't need touching. */
 var mapActive=true;
-function setMapActive(v){ mapActive=v; }
+function setMapActive(v){
+  mapActive=v;
+  var hintEl=document.getElementById('mapActivateHint');
+  if(hintEl)hintEl.hidden=v;
+}
 function evp(e){var r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
 function invert(mx,my){var lon=-106,lat=58;
   for(var i=0;i<40;i++){var p=PROJ(lon,lat),px=sx(p),py=sy(p);
