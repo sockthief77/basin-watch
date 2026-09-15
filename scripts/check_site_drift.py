@@ -130,6 +130,7 @@ CHECKS = [
                          r"(if\(ON\.cameco\)\{for\(var jcm=0[\s\S]*?if\(inRing\(SV\.r,mx,my\)\)return\{t:'survey',o:SV\};\}\})"),
     ("Cameco/survey tooltip content",
                          r"(else if\(h\.t==='cameco'\)s='<b>Cameco Leases</b>[\s\S]*?\(o\.w\?'<div class=\"hint\">'\+esc\(o\.w\)\+'</div>':''\);\})"),
+    ("Tiny-claim halo helper", r"(function tinyClaimHalo\(r,rgba\)\{[\s\S]*?\n\})"),
 ]
 
 

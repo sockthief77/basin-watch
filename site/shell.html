@@ -1362,6 +1362,25 @@ function condVis(c){ if(F.cyear&&String(c.y)!==F.cyear)return false;
 function poly(r,close){ctx.moveTo(sx(r[0]),sy(r[0]));
   for(var i=1;i<r.length;i++)ctx.lineTo(sx(r[i]),sy(r[i])); if(close)ctx.closePath();}
 
+/* Tiny-claim halo, added 2026-09-15 ("very small claims... hard to tell which are
+   lapsing... at reset"). An outline, however wide or glowing, still vanishes once its
+   own polygon shrinks below a pixel or two on screen - width can't rescue a shape
+   that's collapsed to a sliver. Below TINY_CLAIM_PX (screen-space bounding box, in
+   the same pixels the stroke is drawn in) this draws a small glowing dot at the
+   claim's centroid instead of relying on the outline alone, so a tiny lapsing claim
+   stays visible at any zoom, reset view included. r is a PROJECTED ring (poly()'s own
+   convention) - sx()/sy() do the final screen transform here same as poly() itself. */
+var TINY_CLAIM_PX=8;
+function tinyClaimHalo(r,rgba){
+  var minx=Infinity,maxx=-Infinity,miny=Infinity,maxy=-Infinity;
+  for(var i=0;i<r.length;i++){var x=sx(r[i]),y=sy(r[i]);
+    if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y;}
+  if(Math.max(maxx-minx,maxy-miny)>=TINY_CLAIM_PX)return;
+  ctx.save();ctx.shadowColor=rgba;ctx.shadowBlur=8;ctx.fillStyle=rgba;
+  ctx.beginPath();ctx.arc((minx+maxx)/2,(miny+maxy)/2,3.4,0,6.2832);ctx.fill();
+  ctx.restore();
+}
+
 function draw(){
   ctx.clearRect(0,0,W,H);
   var line=tok('--line','#E8E6DE'),muted=tok('--muted','#6B6A66'),surf=tok('--surface','#fff');
@@ -1654,7 +1673,8 @@ function draw(){
            relative to each other, not just "equally loud." */
         ctx.shadowColor='rgba(255,20,147,.85)';ctx.shadowBlur=6;
         ctx.lineWidth=Math.max(1.5,Math.min(3.4,view.s*.0132*1.7));ctx.stroke();
-        ctx.shadowBlur=0;});
+        ctx.shadowBlur=0;
+        tinyClaimHalo(t.r,'rgba(255,20,147,.95)');});
       ctx.restore();}}
 
   /* Lapsing 8-14 Days - added 2026-09-11, second/wider tier alongside the 7-day layer
@@ -1674,7 +1694,8 @@ function draw(){
            one instead of the two competing at equal loudness. */
         ctx.shadowColor='rgba(255,133,194,.7)';ctx.shadowBlur=3;
         ctx.lineWidth=Math.max(.96,Math.min(2.16,view.s*.0132));ctx.stroke();
-        ctx.shadowBlur=0;});
+        ctx.shadowBlur=0;
+        tinyClaimHalo(t.r,'rgba(255,133,194,.95)');});
       ctx.restore();}}
 
   if(ON.tenure){ctx.save();
